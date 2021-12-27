@@ -42,10 +42,10 @@ static void error(const string& s) {
     throw invalid_argument(s);
 }
 
-using Tokens = vector<unique_ptr<Token>>;
+using Tokens = vector<Token>;
 
-vector<unique_ptr<Token>> tokenize(char*p){
-    vector<unique_ptr<Token>> tokens;
+Tokens tokenize(char*p){
+    Tokens tokens;
     while(*p){
         if(isspace(*p)){
             p++;
@@ -53,12 +53,12 @@ vector<unique_ptr<Token>> tokenize(char*p){
         }
 
         if (isdigit(*p)){
-            tokens.emplace_back(make_unique<TokenNum>(p));
+            tokens.emplace_back(TokenNum(p));
             continue;
         }
 
         if (*p == '+' || *p == '-'){
-            tokens.emplace_back(make_unique<TokenPunct>(p));
+            tokens.emplace_back(TokenPunct(p));
             continue;
         }
 
@@ -103,11 +103,11 @@ void gen_assembly(char* s){
 void gen_assembly(const Tokens& tokens){
     gen_header();
     cout << "main:\n";
-    ass_assign_rax(*tokens.at(0));
+    ass_assign_rax(tokens.at(0));
     int i = 1;
     while(i < tokens.size()){
-        if (auto cur_token = get_if<TokenPunct>(tokens.at(i).get())){
-            auto& next_token = get<TokenNum>(*tokens.at(i+1));
+        if (auto cur_token = get_if<TokenPunct>(&tokens.at(i))){
+            auto& next_token = get<TokenNum>(tokens.at(i+1));
             ass_punct(*cur_token, next_token);
             i+= 2;
             continue;
