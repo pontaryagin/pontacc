@@ -1,10 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-struct Token {
-    virtual ~Token() = default;
-};
-
 struct TokenInfo {
     const char *loc; // Token location
     int len;   // Token length
@@ -15,10 +11,10 @@ struct TokenInfo {
     }
 };
 
-
-struct TokenNum: Token {
+struct TokenNum {
     int val;
     TokenInfo info;
+    TokenNum () = default;
     TokenNum (char*& p) {
         char* next;
         auto cur = strtol(p, &next, 10);
@@ -31,13 +27,16 @@ struct TokenNum: Token {
     }
 };
 
-struct TokenPunct: Token {
+struct TokenPunct {
     char val;
+    TokenPunct () = default;
     TokenPunct (char*& p) {
         val = *p;
         p++;
     }
 };
+
+using Token = variant<TokenNum, TokenPunct>;
 
 static void error(const string& s) {
     throw invalid_argument(s);
@@ -72,7 +71,7 @@ void gen_header(){
 }
 
 void ass_assign_rax(const Token& token){
-    auto cur = dynamic_cast<const TokenNum&>(token).val;
+    auto cur = get<TokenNum>(token).val;
     cout << "mov $" << cur << ", %rax\n";
 }
 
@@ -106,9 +105,9 @@ void gen_assembly(const Tokens& tokens){
     cout << "main:\n";
     ass_assign_rax(*tokens.at(0));
     int i = 1;
-    for(; i < tokens.size();){
-        if (auto cur_token = dynamic_cast<const TokenPunct*>(tokens.at(i).get())){
-            auto& next_token = dynamic_cast<const TokenNum&>(*tokens.at(i+1));
+    while(i < tokens.size()){
+        if (auto cur_token = get_if<TokenPunct>(tokens.at(i).get())){
+            auto& next_token = get<TokenNum>(*tokens.at(i+1));
             ass_punct(*cur_token, next_token);
             i+= 2;
             continue;
