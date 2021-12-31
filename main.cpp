@@ -150,6 +150,36 @@ struct NodePunct: INode{
             cout << "  cqo" << endl;
             cout << "  idiv %rdi" << endl;
         }
+        else if(type == "=="){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  sete %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
+        else if(type == "!="){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  setne %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
+        else if(type == "<="){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  setle %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
+        else if(type == "<"){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  setl %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
+        else if(type == ">="){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  setge %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
+        else if(type == ">"){
+            cout << "  cmp %rdi, %rax" << endl;
+            cout << "  setg %al" << endl;
+            cout << "  movzb %al, %rax" << endl;
+        }
         else{
             abort();
         }
@@ -212,8 +242,8 @@ pair<unique_ptr<INode>,int> parse_mul(const vector<Token>& tokens, int start_pos
     return {move(pNode), pos};
 }
 
-//  expr    = mul ("+" mul | "-" mul)*
-pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
+//  add    = mul ("+" mul | "-" mul)*
+pair<unique_ptr<INode>,int> parse_add(const vector<Token>& tokens, int start_pos){
     auto [pNode, pos] = parse_mul(tokens, start_pos);
     while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
@@ -229,39 +259,39 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
     return {move(pNode), pos};
 }
 
-// //  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-// pair<unique_ptr<INode>,int> parse_relational(const vector<Token>& tokens, int start_pos){
-//     auto [pNode, pos] = parse_relational(tokens, start_pos);
-//     while (pos < tokens.size()){
-//         auto token_val = tokens.at(pos).punct;
-//         if (token_val == "+" || token_val == "-" ){
-//             auto [pNode2, pos2] = parse_relational(tokens, pos+1);
-//             pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
-//             pos = pos2;
-//         }
-//         else {
-//             break;
-//         }
-//     }
-//     return {move(pNode), pos};
-// }
+//  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+pair<unique_ptr<INode>,int> parse_relational(const vector<Token>& tokens, int start_pos){
+    auto [pNode, pos] = parse_add(tokens, start_pos);
+    while (pos < tokens.size()){
+        auto token_val = tokens.at(pos).punct;
+        if (token_val == "<" || token_val == "<=" || token_val == ">" || token_val == ">="){
+            auto [pNode2, pos2] = parse_add(tokens, pos+1);
+            pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+            pos = pos2;
+        }
+        else {
+            break;
+        }
+    }
+    return {move(pNode), pos};
+}
 
-// //  expr    = relational ("==" relational | "!=" relational)*
-// pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
-//     auto [pNode, pos] = parse_relational(tokens, start_pos);
-//     while (pos < tokens.size()){
-//         auto token_val = tokens.at(pos).punct;
-//         if (token_val == "+" || token_val == "-" ){
-//             auto [pNode2, pos2] = parse_relational(tokens, pos+1);
-//             pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
-//             pos = pos2;
-//         }
-//         else {
-//             break;
-//         }
-//     }
-//     return {move(pNode), pos};
-// }
+//  expr    = relational ("==" relational | "!=" relational)*
+pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
+    auto [pNode, pos] = parse_relational(tokens, start_pos);
+    while (pos < tokens.size()){
+        auto& token_val = tokens.at(pos).punct;
+        if (token_val == "==" || token_val == "!="){
+            auto [pNode2, pos2] = parse_relational(tokens, pos+1);
+            pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+            pos = pos2;
+        }
+        else {
+            break;
+        }
+    }
+    return {move(pNode), pos};
+}
 
 
 string read_all_lines(){
