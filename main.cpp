@@ -8,13 +8,13 @@ enum class TokenKind {
 };
 
 // Reports an error location and exit.
-void verror_at(const char * current_input, const char *loc, string_view fmt) {
-    int pos = loc - current_input;
-    fprintf(stderr, "%s\n", current_input);
-    fprintf(stderr, "%*s", pos, ""); // print pos spaces.
-    fprintf(stderr, "^ ");
+void verror_at(string_view current_input, int pos, string_view fmt) {
+    cerr << current_input << endl;
+    for (int i = 0; i < pos; ++i){
+        cerr << " "; // print pos spaces.
+    }
+    cerr <<  "^ ";
     cerr << fmt << endl;
-    fprintf(stderr, "\n");
     exit(1);
 }
 
@@ -23,43 +23,47 @@ struct Token {
     string punct;
     TokenKind kind;
     // info 
-    const char *start_point;
-    const char *loc; // Token location
+    string_view whole_statement;
+    int loc; // Token location
     int len;   // Token length
     Token () = default;
+
     void from_num(const char*& p) {
         kind = TokenKind::Num;
         char* next;
         val = strtol(p, &next, 10);
-        loc = p;
         len = next - p;
         p = next;
     }
-    void from_punct(const char*& p) {
+
+    void from_punct(const char*& p, string_view punct_) {
         kind = TokenKind::Punct;
-        punct = string(1, *p);
-        loc = p;
-        len = 1;
-        p++;
+        punct = punct_;
+        len = punct_.size();
+        p = p + len;
     }
-    Token(const char * start_point, const char*& p)
-        : start_point(start_point)
+
+    Token(string_view whole_statement, const char*& p)
+        : whole_statement(whole_statement), loc(p-whole_statement.data())
     {
+        auto view = string_view(p);
         if (isdigit(*p)){
             from_num(p);
             return;
         }
-        if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')'){
-            from_punct(p);
-            return;
+        for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">"}){
+            if (view.starts_with(op)){
+                from_punct(p, op);
+                return;
+            }
         }
-        verror_at(start_point, p, "Unknown operator\n");
+        verror_at(whole_statement, loc, "Unknown operator\n");
     }
 };
 
 
 void verror_at(const Token& token, string_view fmt){
-    verror_at(token.start_point, token.loc, fmt);
+    verror_at(token.whole_statement, token.loc, fmt);
 }
 
 using Tokens = vector<Token>;
@@ -207,9 +211,8 @@ pair<unique_ptr<INode>,int> parse_mul(const vector<Token>& tokens, int start_pos
     return {move(pNode), pos};
 }
 
-
+//  expr    = mul ("+" mul | "-" mul)*
 pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
-    //  expr    = mul ("+" mul | "-" mul)*
     auto [pNode, pos] = parse_mul(tokens, start_pos);
     while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
@@ -224,6 +227,41 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
     }
     return {move(pNode), pos};
 }
+
+// //  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// pair<unique_ptr<INode>,int> parse_relational(const vector<Token>& tokens, int start_pos){
+//     auto [pNode, pos] = parse_relational(tokens, start_pos);
+//     while (pos < tokens.size()){
+//         auto token_val = tokens.at(pos).punct;
+//         if (token_val == "+" || token_val == "-" ){
+//             auto [pNode2, pos2] = parse_relational(tokens, pos+1);
+//             pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+//             pos = pos2;
+//         }
+//         else {
+//             break;
+//         }
+//     }
+//     return {move(pNode), pos};
+// }
+
+// //  expr    = relational ("==" relational | "!=" relational)*
+// pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
+//     auto [pNode, pos] = parse_relational(tokens, start_pos);
+//     while (pos < tokens.size()){
+//         auto token_val = tokens.at(pos).punct;
+//         if (token_val == "+" || token_val == "-" ){
+//             auto [pNode2, pos2] = parse_relational(tokens, pos+1);
+//             pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+//             pos = pos2;
+//         }
+//         else {
+//             break;
+//         }
+//     }
+//     return {move(pNode), pos};
+// }
+
 
 string read_all_lines(){
     string text;
