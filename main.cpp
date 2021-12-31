@@ -106,6 +106,9 @@ enum class PunctType {
 
 struct NodeNum: INode {
     int num;
+    NodeNum(int num)
+        : num(num)
+    {}
     NodeNum(const Token& token){
         if (token.kind != TokenKind::Num){
             verror_at(token, "Number is expected");
@@ -156,9 +159,11 @@ void gen_assembly(const INode& node){
     ass_pop("rax");
     cout << "  ret\n";
 }
+
 pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos);
+
+//  primary = num | "(" expr ")"
 pair<unique_ptr<INode>,int> parse_primary(const vector<Token>& tokens, int start_pos){
-    //  primary = num | "(" expr ")"
     auto token_val = tokens.at(start_pos).punct;
     if (token_val == "("){
         auto [pNode, pos] = parse_expr(tokens, start_pos+1);
@@ -172,13 +177,26 @@ pair<unique_ptr<INode>,int> parse_primary(const vector<Token>& tokens, int start
     }
     return {make_unique<NodeNum>(tokens.at(start_pos)), start_pos+1};
 }
+
+// unary = ("+" | "-") unary | primary
+pair<unique_ptr<INode>,int> parse_unary(const vector<Token>& tokens, int start_pos){
+    if (tokens.at(start_pos).punct == "+"){
+        return parse_unary(tokens, start_pos+1);
+    }
+    else if (tokens.at(start_pos).punct == "-"){
+        auto [pNode, pos] = parse_unary(tokens, start_pos+1);
+        return {make_unique<NodePunct>(tokens.at(start_pos), make_unique<NodeNum>(0), move(pNode)), pos};
+    }
+    return parse_primary(tokens, start_pos);
+}
+
+//  mul     = unary ("*" unary | "/" unary)*
 pair<unique_ptr<INode>,int> parse_mul(const vector<Token>& tokens, int start_pos){
-    //  mul     = primary ("*" primary | "/" primary)*
-    auto [pNode, pos] = parse_primary(tokens, start_pos);
+    auto [pNode, pos] = parse_unary(tokens, start_pos);
     while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
         if (token_val == "*" || token_val == "/" ){
-            auto [pNode2, pos2] = parse_primary(tokens, pos+1);
+            auto [pNode2, pos2] = parse_unary(tokens, pos+1);
             pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
             pos = pos2;
         }
