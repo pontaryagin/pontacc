@@ -23,60 +23,61 @@ struct Token {
     string punct;
     TokenKind kind;
     // info 
-    string_view whole_statement;
+    string_view statement;
     int loc; // Token location
     int len;   // Token length
     Token () = default;
 
-    void from_num(const char*& p) {
+    int from_num(string_view statement) {
         kind = TokenKind::Num;
         char* next;
+        auto p = statement.data();
         val = strtol(p, &next, 10);
         len = next - p;
-        p = next;
+        return len;
     }
 
-    void from_punct(const char*& p, string_view punct_) {
+    int from_punct(string_view punct_) {
         kind = TokenKind::Punct;
         punct = punct_;
         len = punct_.size();
-        p = p + len;
+        return len;
     }
 
-    Token(string_view whole_statement, const char*& p)
-        : whole_statement(whole_statement), loc(p-whole_statement.data())
+    Token(string_view statement, int& pos)
+        : statement(statement), loc(pos)
     {
-        auto view = string_view(p);
-        if (isdigit(*p)){
-            from_num(p);
+        if (isdigit(statement[pos])){
+            pos += from_num(statement.substr(pos));
             return;
         }
+        auto curr = statement.substr(pos);
         for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">"}){
-            if (view.starts_with(op)){
-                from_punct(p, op);
+            if (curr.starts_with(op)){
+                pos += from_punct(op);
                 return;
             }
         }
-        verror_at(whole_statement, loc, "Unknown operator\n");
+        verror_at(statement, loc, "Unknown operator\n");
     }
 };
 
 
 void verror_at(const Token& token, string_view fmt){
-    verror_at(token.whole_statement, token.loc, fmt);
+    verror_at(token.statement, token.loc, fmt);
 }
 
 using Tokens = vector<Token>;
 
-Tokens tokenize(const char*p){
-    const char* start_point = p;
+Tokens tokenize(string_view text){
     Tokens tokens;
-    while(*p){
-        if(isspace(*p)){
+    int p = 0;
+    while(p < text.size()){
+        if(isspace(text[p])){
             p++;
             continue;
         }
-        tokens.emplace_back(start_point, p);
+        tokens.emplace_back(text, p);
     }
     return tokens;
 }
