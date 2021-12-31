@@ -175,16 +175,16 @@ pair<unique_ptr<INode>,int> parse_primary(const vector<Token>& tokens, int start
 pair<unique_ptr<INode>,int> parse_mul(const vector<Token>& tokens, int start_pos){
     //  mul     = primary ("*" primary | "/" primary)*
     auto [pNode, pos] = parse_primary(tokens, start_pos);
-    if (pos < tokens.size()){
+    while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
         if (token_val == "*" || token_val == "/" ){
-            auto [pNode2, pos2] = parse_mul(tokens, pos+1);
-            auto pNodePar = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
-            return {move(pNodePar), pos2};
+            auto [pNode2, pos2] = parse_primary(tokens, pos+1);
+            pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+            pos = pos2;
         }
-        // else{
-        //     verror_at(tokens.at(pos), "'*' or '/' is expected");
-        // }
+        else {
+            break;
+        }
     }
     return {move(pNode), pos};
 }
@@ -193,16 +193,16 @@ pair<unique_ptr<INode>,int> parse_mul(const vector<Token>& tokens, int start_pos
 pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
     //  expr    = mul ("+" mul | "-" mul)*
     auto [pNode, pos] = parse_mul(tokens, start_pos);
-    if (pos < tokens.size()){
+    while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
         if (token_val == "+" || token_val == "-" ){
-            auto [pNode2, pos2] = parse_expr(tokens, pos+1);
-            auto pNodePar = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
-            return {move(pNodePar), pos2};
+            auto [pNode2, pos2] = parse_mul(tokens, pos+1);
+            pNode = make_unique<NodePunct>(tokens.at(pos), move(pNode), move(pNode2));
+            pos = pos2;
         }
-        // else{
-        //     verror_at(tokens.at(pos), "'+' or '-' is expected");
-        // }
+        else {
+            break;
+        }
     }
     return {move(pNode), pos};
 }
