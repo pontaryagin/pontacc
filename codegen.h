@@ -23,9 +23,13 @@ static void ass_prologue(int indent_count){
     cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
 }
 
-static void ass_epilogue(int indent_count){
-    cout << "  add $" << indent_count*8 << ", %rsp" << endl;
+static void ass_epilogue(){
+    cout << "  mov %rbp, %rsp" << endl;
     cout << "  pop %rbp" << endl;
+}
+
+static string ass_stack_reg(int stack_num){
+    return to_string(-8*(stack_num)) + "(%rbp)";
 }
 
 struct INode{
@@ -62,8 +66,7 @@ struct NodeIdent: INode {
         stack_num = token.val;
     }
     void generate() const override {
-        string var = to_string(-8*(stack_num)) + "(%rbp)";
-        cout << "  mov " << var << ", %rax" << endl;
+        cout << "  mov " << ass_stack_reg(stack_num) << ", %rax" << endl;
         ass_push("rax"); 
     }
 };
@@ -142,8 +145,7 @@ struct NodeAssign: INode {
         rhs->generate();
         ass_pop("rax");
         auto& ident = dynamic_cast<const NodeIdent&>(*lhs);
-        string var = to_string(-8*(ident.stack_num)) + "(%rbp)";
-        cout << "  mov %rax, " << var << endl;
+        cout << "  mov %rax, " << ass_stack_reg(ident.stack_num) << endl;
         ass_push("rax");
     }
 };
@@ -161,7 +163,7 @@ struct NodeProgram: INode {
             pNode->generate();
             ass_pop("rax");
         }
-        ass_epilogue(Token::indents.size()+1);
+        ass_epilogue();
     }
 };
 
