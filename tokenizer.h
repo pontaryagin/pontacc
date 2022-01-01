@@ -40,7 +40,7 @@ struct Token {
     }
 
     static bool is_identifier_char(char c){
-        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+        return ('0'<= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
     }
 
     int from_ident(string_view statement){
