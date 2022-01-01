@@ -5,12 +5,15 @@
 enum class TokenKind {
     Num,
     Punct,
+    Ident,
 };
 
 struct Token {
     int val;
     string punct;
+    string ident;
     TokenKind kind;
+    static inline map<string, int> indents;
     // info 
     string_view statement;
     int loc; // Token location
@@ -18,11 +21,14 @@ struct Token {
     Token () = default;
 
     int from_num(string_view statement) {
-        kind = TokenKind::Num;
         char* next;
         auto p = statement.data();
         val = strtol(p, &next, 10);
         len = next - p;
+        if (len == 0){
+            return len;
+        }
+        kind = TokenKind::Num;
         return len;
     }
 
@@ -33,19 +39,44 @@ struct Token {
         return len;
     }
 
+    static bool is_identifier_char(char c){
+        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+    }
+
+    int from_ident(string_view statement){
+        int pos = 0;
+        while(pos < statement.size() && is_identifier_char(statement[pos])){
+            pos += 1;
+        }
+        if(pos == 0){
+            return 0;
+        }
+        kind = TokenKind::Ident;
+        ident = statement.substr(0, pos);
+        if (!indents.contains(ident)){
+            indents[ident] = indents.size()+1;
+        }
+        val = indents.at(ident);
+        return len = pos;
+    }
+
     Token(string_view statement, int& pos)
         : statement(statement), loc(pos)
     {
-        if (isdigit(statement[pos])){
-            pos += from_num(statement.substr(pos));
-            return;
-        }
         auto curr = statement.substr(pos);
         for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"}){
             if (curr.starts_with(op)){
                 pos += from_punct(op);
                 return;
             }
+        }
+        if (auto len = from_num(curr)){
+            pos += len;
+            return;
+        }
+        if (auto len = from_ident(curr)){
+            pos += len;
+            return;
         }
         verror_at(statement, loc, "Unknown operator\n");
     }

@@ -5,7 +5,7 @@
 
 pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
-//  primary = num | "(" expr ")"
+//  primary = num | ident | "(" expr ")"
 pair<unique_ptr<INode>,int> parse_primary(const vector<Token>& tokens, int start_pos){
     auto token_val = tokens.at(start_pos).punct;
     if (token_val == "("){
@@ -17,6 +17,9 @@ pair<unique_ptr<INode>,int> parse_primary(const vector<Token>& tokens, int start
             verror_at(tokens.at(pos), "')' should come here");
         }
         return {move(pNode), pos+1};
+    }
+    else if (tokens.at(start_pos).kind == TokenKind::Ident){
+        return {make_unique<NodeIdent>(tokens.at(start_pos)), start_pos+1};
     }
     return {make_unique<NodeNum>(tokens.at(start_pos)), start_pos+1};
 }
@@ -84,8 +87,8 @@ pair<unique_ptr<INode>,int> parse_relational(const vector<Token>& tokens, int st
     return {move(pNode), pos};
 }
 
-//  expr    = relational ("==" relational | "!=" relational)*
-pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
+//  equality   = relational ("==" relational | "!=" relational)*
+pair<unique_ptr<INode>,int> parse_equality(const vector<Token>& tokens, int start_pos){
     auto [pNode, pos] = parse_relational(tokens, start_pos);
     while (pos < tokens.size()){
         auto& token_val = tokens.at(pos).punct;
@@ -99,6 +102,24 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
         }
     }
     return {move(pNode), pos};
+}
+
+
+// assign     = equality ("=" assign)?
+pair<unique_ptr<INode>,int> parse_assign(const vector<Token>& tokens, int start_pos){
+    auto [pNode, pos] = parse_equality(tokens, start_pos);
+    auto& token_val = tokens.at(pos).punct;
+    if (token_val == "="){
+        auto [pNode2, pos2] = parse_assign(tokens, pos+1);
+        pNode = make_unique<NodeAssign>(tokens.at(pos), move(pNode), move(pNode2));
+        pos = pos2;
+    }
+    return {move(pNode), pos};
+}
+
+// expr = assign
+pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos){
+    return parse_assign(tokens, start_pos);
 }
 
 // statement = expr ";"
