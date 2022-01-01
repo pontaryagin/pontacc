@@ -6,7 +6,7 @@
 int main(int argc, char **argv){
     string program = argc == 2 ? argv[1]: read_all_lines();
     auto tokens = tokenize(program.c_str());
-    auto [node, pos] = parse_expr(tokens, 0);
+    auto [node, pos] = parse_program(tokens, 0);
     if (pos != tokens.size()) {
         verror_at(tokens.at(pos), "Not parsed");
     }

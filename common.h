@@ -11,7 +11,7 @@ void verror_at(string_view current_input, int pos, string_view fmt) {
     }
     cerr <<  "^ ";
     cerr << fmt << endl;
-    exit(1);
+    throw;
 }
 
 

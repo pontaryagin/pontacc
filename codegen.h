@@ -99,11 +99,25 @@ struct NodePunct: INode{
     }
 };
 
+struct NodeProgram: INode {
+    vector<unique_ptr<INode>> pNodes;
+
+    NodeProgram(vector<unique_ptr<INode>> pNodes)
+        : pNodes(move(pNodes))
+    {}
+
+    void generate() const override{
+        for (auto& pNode: pNodes){
+            pNode->generate();
+            ass_pop("rax");
+        }
+    }
+};
+
 void gen_assembly(const INode& node){
     gen_header();
     cout << "main:\n";
     node.generate();
-    ass_pop("rax");
     cout << "  ret\n";
 }
 

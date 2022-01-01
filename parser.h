@@ -100,3 +100,30 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
     }
     return {move(pNode), pos};
 }
+
+// statement = expr ";"
+pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int start_pos){
+    auto [pNode, pos] = parse_expr(tokens, start_pos);
+    auto& token_val = tokens.at(pos).punct;
+    if (token_val == ";"){
+        pos += 1;
+    }
+    else {
+        verror_at(tokens.at(pos), "';' is expected");
+    }
+    return {move(pNode), pos};
+}
+
+// program    = statement*
+pair<unique_ptr<INode>,int> parse_program(const vector<Token>& tokens, int start_pos){
+    vector<unique_ptr<INode>> pNodes;
+    int pos = 0;
+    while (pos < tokens.size()){
+        auto [pNode, pos_] = parse_statement(tokens, pos);
+        pos = pos_;
+        pNodes.emplace_back(move(pNode));
+    }
+    return {make_unique<NodeProgram>(move(pNodes)), pos};
+}
+
+
