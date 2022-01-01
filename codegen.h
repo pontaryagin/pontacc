@@ -18,6 +18,7 @@ static void ass_push(int num){
 }
 
 static void ass_prologue(int indent_count){
+    indent_count = round_up(indent_count, 2); // Some function requires 16-byte alignment for rsp register
     cout << "  push %rbp" << endl;
     cout << "  mov %rsp, %rbp" << endl;
     cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
