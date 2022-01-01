@@ -171,13 +171,13 @@ struct NodePunct: INode{
             cout << "  movzb %al, %rax" << endl;
         }
         else if(type == ">="){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  setge %al" << endl;
+            cout << "  cmp %rax, %rdi" << endl;
+            cout << "  setle %al" << endl;
             cout << "  movzb %al, %rax" << endl;
         }
         else if(type == ">"){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  setg %al" << endl;
+            cout << "  cmp %rax, %rdi" << endl;
+            cout << "  setl %al" << endl;
             cout << "  movzb %al, %rax" << endl;
         }
         else{
