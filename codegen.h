@@ -156,12 +156,12 @@ struct NodeProgram: INode {
     {}
 
     void generate() const override{
-        ass_prologue(Token::indents.size()+2);
+        ass_prologue(Token::indents.size()+1);
         for (auto& pNode: pNodes){
             pNode->generate();
             ass_pop("rax");
         }
-        ass_epilogue(Token::indents.size()+2);
+        ass_epilogue(Token::indents.size()+1);
     }
 };
 

@@ -98,7 +98,7 @@ Tokens tokenize(string_view text){
 }
 
 
-void verror_at(const Token& token, string_view fmt){
-    verror_at(token.statement, token.loc, fmt);
+void verror_at(const Token& token, string_view fmt, bool next=false){
+    verror_at(token.statement, token.loc, fmt, next);
 }
 

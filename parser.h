@@ -108,8 +108,7 @@ pair<unique_ptr<INode>,int> parse_equality(const vector<Token>& tokens, int star
 // assign     = equality ("=" assign)?
 pair<unique_ptr<INode>,int> parse_assign(const vector<Token>& tokens, int start_pos){
     auto [pNode, pos] = parse_equality(tokens, start_pos);
-    auto& token_val = tokens.at(pos).punct;
-    if (token_val == "="){
+    if (pos < tokens.size() && tokens.at(pos).punct == "="){
         auto [pNode2, pos2] = parse_assign(tokens, pos+1);
         pNode = make_unique<NodeAssign>(tokens.at(pos), move(pNode), move(pNode2));
         pos = pos2;
@@ -125,12 +124,11 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
 // statement = expr ";"
 pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int start_pos){
     auto [pNode, pos] = parse_expr(tokens, start_pos);
-    auto& token_val = tokens.at(pos).punct;
-    if (token_val == ";"){
+    if (pos < tokens.size() && tokens.at(pos).punct == ";"){
         pos += 1;
     }
     else {
-        verror_at(tokens.at(pos), "';' is expected");
+        verror_at(tokens.at(pos-1), "';' is expected", true);
     }
     return {move(pNode), pos};
 }

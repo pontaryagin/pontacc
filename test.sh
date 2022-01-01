@@ -18,6 +18,8 @@ assert() {
 }
 
 assert 2 '5-2-1;'
+assert 11 'a_aa=1; BBB_AAA=3; 2*(a_aa+BBB_AAA)+3;'
+
 
 assert 0 '0;'
 assert 42 '42;'

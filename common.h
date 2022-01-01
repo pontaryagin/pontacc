@@ -4,9 +4,9 @@
 using namespace std;
 
 // Reports an error location and exit.
-void verror_at(string_view current_input, int pos, string_view fmt) {
+void verror_at(string_view current_input, int pos, string_view fmt, bool next=false) {
     cerr << current_input << endl;
-    for (int i = 0; i < pos; ++i){
+    for (int i = 0; i < pos + (next ? 1: 0); ++i){
         cerr << " "; // print pos spaces.
     }
     cerr <<  "^ ";
