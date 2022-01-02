@@ -6,6 +6,11 @@ enum class TokenKind {
     Num,
     Punct,
     Ident,
+    Keyword,
+};
+
+inline set<string> keywords = {
+    "return"
 };
 
 struct Token {
@@ -51,8 +56,8 @@ struct Token {
         if(pos == 0){
             return 0;
         }
-        kind = TokenKind::Ident;
         ident = statement.substr(0, pos);
+        kind = keywords.contains(ident) ? TokenKind::Keyword : TokenKind::Ident;
         if (!indents.contains(ident)){
             indents[ident] = indents.size()+1;
         }

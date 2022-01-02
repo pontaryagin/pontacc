@@ -151,6 +151,21 @@ struct NodeAssign: INode {
     }
 };
 
+struct NodeRet: INode {
+    unique_ptr<INode> pNode;
+    Token token;
+    // NodeStatement(Token token, unique_ptr<INode> pNode)
+    //     : token(token), pNode(move(pNode))
+    // {}
+
+    void generate() const override{
+        pNode->generate();
+        if (token.kind == TokenKind::Keyword && token.ident == "return"){
+            cout << "  jmp .L.return" << endl;
+        }
+    }
+};
+
 struct NodeProgram: INode {
     vector<unique_ptr<INode>> pNodes;
 

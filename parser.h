@@ -121,15 +121,23 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
     return parse_assign(tokens, start_pos);
 }
 
-// statement = expr ";"
+// statement = expr ";" | "return" expr ";"
 pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int start_pos){
-    auto [pNode, pos] = parse_expr(tokens, start_pos);
-    if (pos < tokens.size() && tokens.at(pos).punct == ";"){
-        pos += 1;
+    optional<int> ret_pos;
+    if (tokens.at(start_pos).kind == TokenKind::Keyword){
+        ret_pos = start_pos;
+        start_pos += 1;
     }
-    else {
+    auto [pNode, pos] = parse_expr(tokens, start_pos);
+    if (pos >= tokens.size() || tokens.at(pos).punct != ";"){
         verror_at(tokens.at(pos-1), "';' is expected", true);
     }
+    if (ret_pos){
+        new B{.c = 1};
+        // new NodeRet{.pNode = move(pNode), .token=tokens.at(*ret_pos)};
+        pNode = make_unique<NodeRet>(move(pNode), tokens.at(*ret_pos));
+    }
+    pos += 1;
     return {move(pNode), pos};
 }
 
