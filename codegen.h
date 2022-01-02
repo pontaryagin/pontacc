@@ -169,27 +169,27 @@ struct NodeRet: INode {
     }
 };
 
-struct NodeProgram: INode {
+struct NodeCompoundStatement: INode {
     vector<unique_ptr<INode>> pNodes;
 
-    NodeProgram(vector<unique_ptr<INode>> pNodes)
+    NodeCompoundStatement(vector<unique_ptr<INode>> pNodes)
         : pNodes(move(pNodes))
     {}
 
     void generate() const override{
-        ass_prologue(Token::indents.size()+1);
         for (auto& pNode: pNodes){
             pNode->generate();
             ass_pop("rax");
         }
-        ass_epilogue();
     }
 };
 
 void gen_assembly(const INode& node){
     gen_header();
     cout << "main:\n";
+    ass_prologue(Token::indents.size()+1);
     node.generate();
+    ass_epilogue();
     cout << "  ret\n";
 }
 

@@ -3,6 +3,17 @@
 #include "tokenizer.h"
 #include "codegen.h"
 
+static void expect_punct(const vector<Token>& tokens, int pos, const string& op){
+    if (pos >= tokens.size()){
+        verror_at(tokens.back(), "'" + op + "' is expected", true);
+        return;
+    }
+    if (tokens.at(pos).punct != op){
+        verror_at(tokens.at(pos), "'" + op + "' is expected");
+        return;
+    }
+}
+
 pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
 //  primary = num | ident | "(" expr ")"
@@ -121,12 +132,27 @@ pair<unique_ptr<INode>,int> parse_expr(const vector<Token>& tokens, int start_po
     return parse_assign(tokens, start_pos);
 }
 
-// statement = expr ";" | "return" expr ";"
+pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int pos);
+// compound-statement = statement* "}"
+pair<unique_ptr<INode>,int> parse_compound_statement(const vector<Token>& tokens, int pos){
+    vector<unique_ptr<INode>> pNodes;
+    while (tokens.at(pos).punct != "}"){
+        auto [pNode, pos_] = parse_statement(tokens, pos);
+        pos = pos_;
+        pNodes.emplace_back(move(pNode));
+    }
+    return {make_unique<NodeCompoundStatement>(move(pNodes)), pos+1};
+}
+
+// statement = expr ";" | "{" compound-statement | "return" expr ";"
 pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int start_pos){
     optional<int> ret_pos;
     if (tokens.at(start_pos).kind == TokenKind::Keyword){
         ret_pos = start_pos;
         start_pos += 1;
+    }
+    else if (tokens.at(start_pos).punct == "{"){
+        return parse_compound_statement(tokens, start_pos+1);
     }
     auto [pNode, pos] = parse_expr(tokens, start_pos);
     if (pos >= tokens.size() || tokens.at(pos).punct != ";"){
@@ -139,16 +165,10 @@ pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int sta
     return {move(pNode), pos};
 }
 
-// program    = statement*
-pair<unique_ptr<INode>,int> parse_program(const vector<Token>& tokens, int start_pos){
-    vector<unique_ptr<INode>> pNodes;
-    int pos = 0;
-    while (pos < tokens.size()){
-        auto [pNode, pos_] = parse_statement(tokens, pos);
-        pos = pos_;
-        pNodes.emplace_back(move(pNode));
-    }
-    return {make_unique<NodeProgram>(move(pNodes)), pos};
+// program    = "{" compound-statement
+pair<unique_ptr<INode>,int> parse_program(const vector<Token>& tokens, int pos){
+    expect_punct(tokens, pos++, "{");
+    return parse_compound_statement(tokens, pos);
 }
 
 

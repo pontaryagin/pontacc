@@ -69,7 +69,7 @@ struct Token {
         : statement(statement), loc(pos)
     {
         auto curr = statement.substr(pos);
-        for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";"}){
+        for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}"}){
             if (curr.starts_with(op)){
                 pos += from_punct(op);
                 return;
