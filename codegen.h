@@ -25,6 +25,7 @@ static void ass_prologue(int indent_count){
 }
 
 static void ass_epilogue(){
+    cout << ".L.return:" << endl;
     cout << "  mov %rbp, %rsp" << endl;
     cout << "  pop %rbp" << endl;
 }
@@ -154,15 +155,17 @@ struct NodeAssign: INode {
 struct NodeRet: INode {
     unique_ptr<INode> pNode;
     Token token;
-    // NodeStatement(Token token, unique_ptr<INode> pNode)
-    //     : token(token), pNode(move(pNode))
-    // {}
+    NodeRet(Token token, unique_ptr<INode> pNode)
+        : token(token), pNode(move(pNode))
+    {}
 
     void generate() const override{
         pNode->generate();
-        if (token.kind == TokenKind::Keyword && token.ident == "return"){
-            cout << "  jmp .L.return" << endl;
-        }
+        ass_pop("rax");
+        cout << "  jmp .L.return" << endl;
+
+        // if (token.kind == TokenKind::Keyword && token.ident == "return"){
+        // }
     }
 };
 

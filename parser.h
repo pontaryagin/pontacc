@@ -133,9 +133,7 @@ pair<unique_ptr<INode>,int> parse_statement(const vector<Token>& tokens, int sta
         verror_at(tokens.at(pos-1), "';' is expected", true);
     }
     if (ret_pos){
-        new B{.c = 1};
-        // new NodeRet{.pNode = move(pNode), .token=tokens.at(*ret_pos)};
-        pNode = make_unique<NodeRet>(move(pNode), tokens.at(*ret_pos));
+        pNode = make_unique<NodeRet>(tokens.at(*ret_pos),move(pNode));
     }
     pos += 1;
     return {move(pNode), pos};
