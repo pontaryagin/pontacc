@@ -143,7 +143,7 @@ pair<unique_ptr<Node>,int> parse_compound_statement(const vector<Token>& tokens,
     return {make_unique<Node>(NodeCompoundStatement{move(pNodes)}), pos+1};
 }
 
-// statement = "{" compound-statement | expr ";" | "return" expr ";"
+// statement = "{" compound-statement | expr? ";" | "return" expr ";"
 pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int start_pos){
     optional<int> ret_pos;
     if (tokens.at(start_pos).kind == TokenKind::Keyword){
@@ -152,6 +152,9 @@ pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int star
     }
     else if (is_punct(tokens, start_pos, "{")){
         return parse_compound_statement(tokens, start_pos+1);
+    }
+    if (is_punct(tokens, start_pos, ";")){
+        return {make_unique<Node>(NodeCompoundStatement{}), start_pos+1};
     }
     auto [pNode, pos] = parse_expr(tokens, start_pos);
     expect_punct(tokens, pos, ";");
