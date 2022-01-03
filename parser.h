@@ -17,6 +17,12 @@ static void expect_punct(const vector<Token>& tokens, int pos, const string& op)
     }
 }
 
+static bool is_keyword(const vector<Token>& tokens, int pos, const string& keyword){
+    if (pos >= tokens.size()){
+        verror_at(tokens.back(), "'" + keyword + "' is expected", true);
+    }
+    return tokens.at(pos).kind == TokenKind::Keyword && tokens.at(pos).ident == keyword;
+}
 
 pair<unique_ptr<Node>,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
@@ -143,10 +149,21 @@ pair<unique_ptr<Node>,int> parse_compound_statement(const vector<Token>& tokens,
     return {make_unique<Node>(NodeCompoundStatement{move(pNodes)}), pos+1};
 }
 
-// statement = "{" compound-statement | expr? ";" | "return" expr ";"
+// statement = "{" compound-statement | expr? ";" | "return" expr ";" | "if" "(" expr ")" statement ("else" statement)?
 pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int start_pos){
     optional<int> ret_pos;
-    if (tokens.at(start_pos).kind == TokenKind::Keyword){
+    if (is_keyword(tokens, start_pos, "if")){
+        expect_punct(tokens, start_pos+1, "(");
+        auto [expr, pos] = parse_expr(tokens, start_pos+2);
+        expect_punct(tokens, pos, ")");
+        auto [statement_if, pos2] = parse_statement(tokens, pos+1);
+        if (is_keyword(tokens, pos2, "else")){
+            auto [statement_else, pos3] = parse_statement(tokens, pos2+1);
+            return {make_unique<Node>(NodeIf(move(expr), move(statement_if), move(statement_else))), pos3};
+        }
+        return {make_unique<Node>(NodeIf(move(expr), move(statement_if), nullptr)), pos2};
+    }
+    if (is_keyword(tokens, start_pos, "return")){
         ret_pos = start_pos;
         start_pos += 1;
     }

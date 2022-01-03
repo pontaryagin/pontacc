@@ -10,7 +10,9 @@ enum class TokenKind {
 };
 
 inline set<string> keywords = {
-    "return"
+    "return",
+    "if",
+    "else",
 };
 
 struct Token {

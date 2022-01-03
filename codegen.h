@@ -18,6 +18,10 @@ static void ass_push(int num){
     cout << "  push $" << num << endl;
 }
 
+static void ass_label(string s){
+    cout << s << ":" << endl;
+}
+
 static void ass_prologue(int indent_count){
     indent_count = round_up(indent_count, 2); // Some function requires 16-byte alignment for rsp register
     cout << "  push %rbp" << endl;
@@ -36,6 +40,8 @@ static string ass_stack_reg(int stack_num){
 }
 
 struct Node;
+
+using PtrNode = unique_ptr<Node>;
 
 struct NodeNum {
     int num;
@@ -66,6 +72,22 @@ struct NodeCompoundStatement {
     vector<unique_ptr<Node>> pNodes;
 };
 
+
+struct NodeIf {
+    PtrNode expr;
+    PtrNode statement_if;
+    PtrNode statement_else;
+    int count;
+private:
+    static inline int curr_count = 1;
+public:
+    NodeIf(PtrNode expr, PtrNode statement_if, PtrNode statement_else)
+        : expr(move(expr)), statement_if(move(statement_if)), statement_else(move(statement_else)), count(curr_count++)
+    {
+
+    }
+};
+
 struct Node
 {
     variant<
@@ -74,10 +96,29 @@ struct Node
         NodePunct,
         NodeAssign,
         NodeRet,
-        NodeCompoundStatement> val;
+        NodeCompoundStatement,
+        NodeIf> val;
 };
 
 static void generate(const Node& node);
+
+static void generate(const NodeIf& node){
+    generate(*node.expr);
+    auto count = to_string(node.count);
+    ass_pop("rax");
+    cout << "cmp $0" << ", %rax" << endl;
+    cout << "je " << ".L.else." << count << endl;
+    generate(*node.statement_if);
+    ass_pop("rax");
+    cout << "jmp " << ".L.end." << count << endl;
+    ass_label(".L.else." + count);
+    if (node.statement_else){
+        generate(*node.statement_else);
+        ass_pop("rax");
+    }
+    ass_label(".L.end." + count);
+}
+
 
 static void generate(const NodeNum& node){
     ass_push(node.num);
