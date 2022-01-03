@@ -34,162 +34,152 @@ static string ass_stack_reg(int stack_num){
     return to_string(-8*(stack_num)) + "(%rbp)";
 }
 
-struct INode{
-    virtual void generate() const = 0;
-};
+struct INode;
 
-struct NodeNum: INode {
+struct NodeNum {
     int num;
-    NodeNum(int num)
-        : num(num)
-    {}
-    NodeNum(const Token& token){
-        if (token.kind != TokenKind::Num){
-            verror_at(token, "Number is expected");
-        }
-        num = token.val;
-    }
-    void generate() const override{
-        ass_push(num);
-    }
 };
 
-struct NodeIdent: INode {
+struct NodeIdent {
     string name;
     int stack_num;
-    NodeIdent(string name, int stack_num)
-        : name(name), stack_num(stack_num)
-    {}
-    NodeIdent(const Token& token){
-        if (token.kind != TokenKind::Ident){
-            verror_at(token, "Identifier is expected");
-        }
-        name = token.ident;
-        stack_num = token.val;
-    }
-    void generate() const override {
-        cout << "  mov " << ass_stack_reg(stack_num) << ", %rax" << endl;
-        ass_push("rax"); 
-    }
 };
 
-struct NodePunct: INode{
+struct NodePunct{
     unique_ptr<INode> lhs, rhs;
     Token token;
-    NodePunct(Token token, unique_ptr<INode> lhs, unique_ptr<INode> rhs)
-        : token(token), lhs(move(lhs)), rhs(move(rhs))
-    {}
-    void generate() const override{
-        lhs->generate();
-        rhs->generate();
-        ass_pop("rdi");
-        ass_pop("rax");
-        auto& type = token.punct;
-        if(type == "+"){
-            cout << "  add %rdi, %rax" << endl;
-        }
-        else if(type == "-"){
-            cout << "  sub %rdi, %rax" << endl;
-        }
-        else if(type == "*"){
-            cout << "  imul %rdi, %rax" << endl;
-        }
-        else if(type == "/"){
-            cout << "  cqo" << endl;
-            cout << "  idiv %rdi" << endl;
-        }
-        else if(type == "=="){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  sete %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else if(type == "!="){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  setne %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else if(type == "<="){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  setle %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else if(type == "<"){
-            cout << "  cmp %rdi, %rax" << endl;
-            cout << "  setl %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else if(type == ">="){
-            cout << "  cmp %rax, %rdi" << endl;
-            cout << "  setle %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else if(type == ">"){
-            cout << "  cmp %rax, %rdi" << endl;
-            cout << "  setl %al" << endl;
-            cout << "  movzb %al, %rax" << endl;
-        }
-        else{
-            abort();
-        }
-        ass_push("rax");
-    }
 };
 
 
-struct NodeAssign: INode {
+struct NodeAssign {
     unique_ptr<INode> lhs, rhs;
     Token token;
-    NodeAssign(Token token, unique_ptr<INode> lhs, unique_ptr<INode> rhs)
-        : token(token), lhs(move(lhs)), rhs(move(rhs))
-    {}
-
-    void generate() const override{
-        rhs->generate();
-        ass_pop("rax");
-        auto& ident = dynamic_cast<const NodeIdent&>(*lhs);
-        cout << "  mov %rax, " << ass_stack_reg(ident.stack_num) << endl;
-        ass_push("rax");
-    }
 };
 
-struct NodeRet: INode {
+struct NodeRet {
     unique_ptr<INode> pNode;
     Token token;
-    NodeRet(Token token, unique_ptr<INode> pNode)
-        : token(token), pNode(move(pNode))
-    {}
-
-    void generate() const override{
-        pNode->generate();
-        ass_pop("rax");
-        cout << "  jmp .L.return" << endl;
-
-        // if (token.kind == TokenKind::Keyword && token.ident == "return"){
-        // }
-    }
 };
 
-struct NodeCompoundStatement: INode {
+struct NodeCompoundStatement {
     vector<unique_ptr<INode>> pNodes;
-
-    NodeCompoundStatement(vector<unique_ptr<INode>> pNodes)
-        : pNodes(move(pNodes))
-    {}
-
-    void generate() const override{
-        for (auto& pNode: pNodes){
-            pNode->generate();
-            ass_pop("rax");
-        }
-    }
 };
+
+using INode = variant<
+    NodeNum,
+    NodeIdent,
+    NodePunct,
+    NodeAssign,
+    NodeRet,
+    NodeCompoundStatement>;
+
+static void generate(const INode& node);
+
+static void generate(const NodeNum& node){
+    ass_push(node.num);
+}
+static void generate(const NodeCompoundStatement& node){
+    for (auto& pNode: node.pNodes){
+        generate(*pNode);
+        ass_pop("rax");
+    }
+}
+static void generate(const NodeIdent& node){
+    cout << "  mov " << ass_stack_reg(node.stack_num) << ", %rax" << endl;
+    ass_push("rax"); 
+}
+
+static void generate(const NodePunct& node){
+    generate(*node.lhs);
+    generate(*node.rhs);
+    ass_pop("rdi");
+    ass_pop("rax");
+    auto& type = node.token.punct;
+    if(type == "+"){
+        cout << "  add %rdi, %rax" << endl;
+    }
+    else if(type == "-"){
+        cout << "  sub %rdi, %rax" << endl;
+    }
+    else if(type == "*"){
+        cout << "  imul %rdi, %rax" << endl;
+    }
+    else if(type == "/"){
+        cout << "  cqo" << endl;
+        cout << "  idiv %rdi" << endl;
+    }
+    else if(type == "=="){
+        cout << "  cmp %rdi, %rax" << endl;
+        cout << "  sete %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else if(type == "!="){
+        cout << "  cmp %rdi, %rax" << endl;
+        cout << "  setne %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else if(type == "<="){
+        cout << "  cmp %rdi, %rax" << endl;
+        cout << "  setle %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else if(type == "<"){
+        cout << "  cmp %rdi, %rax" << endl;
+        cout << "  setl %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else if(type == ">="){
+        cout << "  cmp %rax, %rdi" << endl;
+        cout << "  setle %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else if(type == ">"){
+        cout << "  cmp %rax, %rdi" << endl;
+        cout << "  setl %al" << endl;
+        cout << "  movzb %al, %rax" << endl;
+    }
+    else{
+        abort();
+    }
+    ass_push("rax");
+}
+
+static void generate(const NodeAssign& node){
+    generate(*node.rhs);
+    ass_pop("rax");
+    auto& ident = get<NodeIdent>(*node.lhs);
+    cout << "  mov %rax, " << ass_stack_reg(ident.stack_num) << endl;
+    ass_push("rax");
+}
+
+static void generate(const NodeRet& node){
+    generate(*node.pNode);
+    ass_pop("rax");
+    cout << "  jmp .L.return" << endl;
+}
+
+static void generate(const INode& node){
+    visit(node, [](const auto& node){
+        generate(node);
+    });
+}
 
 void gen_assembly(const INode& node){
     gen_header();
     cout << "main:\n";
     ass_prologue(Token::indents.size()+1);
-    node.generate();
+    generate(node);
     ass_epilogue();
     cout << "  ret\n";
+}
+
+static unique_ptr<INode> token_to_node(const Token& token){
+    if (token.kind == TokenKind::Num){
+        return make_unique<INode>(NodeNum{token.val});
+    }
+    if (token.kind == TokenKind::Ident){
+        return make_unique<INode>(NodeIdent{token.ident, token.val});
+    }
+    abort();
 }
 
