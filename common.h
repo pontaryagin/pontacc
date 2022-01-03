@@ -28,7 +28,7 @@ string read_all_lines(){
     return text;
 }
 
-struct INode;
+struct Node;
 
 // Round up n
 constexpr int round_up(int n, int align){

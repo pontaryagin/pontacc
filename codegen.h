@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "tokenizer.h"
 
 void gen_header(){
     cout << "  .global main\n";
@@ -34,7 +35,7 @@ static string ass_stack_reg(int stack_num){
     return to_string(-8*(stack_num)) + "(%rbp)";
 }
 
-struct INode;
+struct Node;
 
 struct NodeNum {
     int num;
@@ -46,34 +47,37 @@ struct NodeIdent {
 };
 
 struct NodePunct{
-    unique_ptr<INode> lhs, rhs;
     Token token;
+    unique_ptr<Node> lhs, rhs;
 };
 
 
 struct NodeAssign {
-    unique_ptr<INode> lhs, rhs;
     Token token;
+    unique_ptr<Node> lhs, rhs;
 };
 
 struct NodeRet {
-    unique_ptr<INode> pNode;
     Token token;
+    unique_ptr<Node> pNode;
 };
 
 struct NodeCompoundStatement {
-    vector<unique_ptr<INode>> pNodes;
+    vector<unique_ptr<Node>> pNodes;
 };
 
-using INode = variant<
-    NodeNum,
-    NodeIdent,
-    NodePunct,
-    NodeAssign,
-    NodeRet,
-    NodeCompoundStatement>;
+struct Node
+{
+    variant<
+        NodeNum,
+        NodeIdent,
+        NodePunct,
+        NodeAssign,
+        NodeRet,
+        NodeCompoundStatement> val;
+};
 
-static void generate(const INode& node);
+static void generate(const Node& node);
 
 static void generate(const NodeNum& node){
     ass_push(node.num);
@@ -147,7 +151,7 @@ static void generate(const NodePunct& node){
 static void generate(const NodeAssign& node){
     generate(*node.rhs);
     ass_pop("rax");
-    auto& ident = get<NodeIdent>(*node.lhs);
+    auto& ident = get<NodeIdent>(node.lhs->val);
     cout << "  mov %rax, " << ass_stack_reg(ident.stack_num) << endl;
     ass_push("rax");
 }
@@ -158,13 +162,13 @@ static void generate(const NodeRet& node){
     cout << "  jmp .L.return" << endl;
 }
 
-static void generate(const INode& node){
-    visit(node, [](const auto& node){
+static void generate(const Node& node){
+    visit([](const auto& node){
         generate(node);
-    });
+    }, node.val);
 }
 
-void gen_assembly(const INode& node){
+void gen_assembly(const Node& node){
     gen_header();
     cout << "main:\n";
     ass_prologue(Token::indents.size()+1);
@@ -173,12 +177,12 @@ void gen_assembly(const INode& node){
     cout << "  ret\n";
 }
 
-static unique_ptr<INode> token_to_node(const Token& token){
+static unique_ptr<Node> token_to_node(const Token& token){
     if (token.kind == TokenKind::Num){
-        return make_unique<INode>(NodeNum{token.val});
+        return make_unique<Node>(NodeNum{token.val});
     }
     if (token.kind == TokenKind::Ident){
-        return make_unique<INode>(NodeIdent{token.ident, token.val});
+        return make_unique<Node>(NodeIdent{token.ident, token.val});
     }
     abort();
 }
