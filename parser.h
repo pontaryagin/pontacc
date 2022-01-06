@@ -62,13 +62,14 @@ pair<unique_ptr<Node>,int> parse_unary(const vector<Token>& tokens, int start_po
     return parse_primary(tokens, start_pos);
 }
 
-//  mul     = unary ("*" unary | "/" unary)*
-pair<unique_ptr<Node>,int> parse_mul(const vector<Token>& tokens, int start_pos){
-    auto [pNode, pos] = parse_unary(tokens, start_pos);
+using PaserType = function<pair<PtrNode,int>(const vector<Token>& tokens, int start_pos)>;
+
+static pair<unique_ptr<Node>,int> parse_letf_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, PaserType next_perser){
+    auto [pNode, pos] = next_perser(tokens, start_pos);
     while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
-        if (token_val == "*" || token_val == "/" ){
-            auto [pNode2, pos2] = parse_unary(tokens, pos+1);
+        if (operators.contains(token_val)){
+            auto [pNode2, pos2] = next_perser(tokens, pos+1);
             pNode = get_node(NodePunct{tokens.at(pos), move(pNode), move(pNode2)});
             pos = pos2;
         }
@@ -77,59 +78,27 @@ pair<unique_ptr<Node>,int> parse_mul(const vector<Token>& tokens, int start_pos)
         }
     }
     return {move(pNode), pos};
+}
+
+//  mul     = unary ("*" unary | "/" unary)*
+pair<unique_ptr<Node>,int> parse_mul(const vector<Token>& tokens, int pos){
+    parse_letf_joint_binary_operator(tokens, pos, {"*", "/"}, parse_unary);
 }
 
 //  add    = mul ("+" mul | "-" mul)*
-pair<unique_ptr<Node>,int> parse_add(const vector<Token>& tokens, int start_pos){
-    auto [pNode, pos] = parse_mul(tokens, start_pos);
-    while (pos < tokens.size()){
-        auto token_val = tokens.at(pos).punct;
-        if (token_val == "+" || token_val == "-" ){
-            auto [pNode2, pos2] = parse_mul(tokens, pos+1);
-            pNode = get_node(NodePunct{tokens.at(pos), move(pNode), move(pNode2)});
-            pos = pos2;
-        }
-        else {
-            break;
-        }
-    }
-    return {move(pNode), pos};
+pair<unique_ptr<Node>,int> parse_add(const vector<Token>& tokens, int pos){
+    parse_letf_joint_binary_operator(tokens, pos, {"+", "-"}, parse_mul);
 }
 
 //  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-pair<unique_ptr<Node>,int> parse_relational(const vector<Token>& tokens, int start_pos){
-    auto [pNode, pos] = parse_add(tokens, start_pos);
-    while (pos < tokens.size()){
-        auto token_val = tokens.at(pos).punct;
-        if (token_val == "<" || token_val == "<=" || token_val == ">" || token_val == ">="){
-            auto [pNode2, pos2] = parse_add(tokens, pos+1);
-            pNode = get_node(NodePunct{tokens.at(pos), move(pNode), move(pNode2)});
-            pos = pos2;
-        }
-        else {
-            break;
-        }
-    }
-    return {move(pNode), pos};
+pair<unique_ptr<Node>,int> parse_relational(const vector<Token>& tokens, int pos){
+    parse_letf_joint_binary_operator(tokens, pos, {"<", "<=", ">", ">="}, parse_mul);
 }
 
 //  equality   = relational ("==" relational | "!=" relational)*
-pair<unique_ptr<Node>,int> parse_equality(const vector<Token>& tokens, int start_pos){
-    auto [pNode, pos] = parse_relational(tokens, start_pos);
-    while (pos < tokens.size()){
-        auto& token_val = tokens.at(pos).punct;
-        if (token_val == "==" || token_val == "!="){
-            auto [pNode2, pos2] = parse_relational(tokens, pos+1);
-            pNode = get_node(NodePunct{tokens.at(pos), move(pNode), move(pNode2)});
-            pos = pos2;
-        }
-        else {
-            break;
-        }
-    }
-    return {move(pNode), pos};
+pair<unique_ptr<Node>,int> parse_equality(const vector<Token>& tokens, int pos){
+    parse_letf_joint_binary_operator(tokens, pos, {"==", "!="}, parse_mul);
 }
-
 
 // assign     = equality ("=" assign)?
 pair<unique_ptr<Node>,int> parse_assign(const vector<Token>& tokens, int start_pos){
