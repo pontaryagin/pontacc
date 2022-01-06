@@ -13,6 +13,7 @@ inline set<string> keywords = {
     "return",
     "if",
     "else",
+    "for",
 };
 
 struct Token {
