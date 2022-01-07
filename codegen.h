@@ -43,6 +43,8 @@ struct Node;
 
 using PtrNode = unique_ptr<Node>;
 
+struct NodeNull {};
+
 struct NodeNum {
     int num;
 };
@@ -83,24 +85,44 @@ private:
 public:
     NodeIf(PtrNode expr, PtrNode statement_if, PtrNode statement_else)
         : expr(move(expr)), statement_if(move(statement_if)), statement_else(move(statement_else)), count(curr_count++)
-    {
-
-    }
+    {}
 };
+
+struct NodeFor {
+    PtrNode expr_init;
+    PtrNode expr_condition;
+    PtrNode expr_increment;
+    PtrNode statement;
+    int count;
+private:
+    static inline int curr_count = 1;
+public:
+    NodeFor(PtrNode expr_init, PtrNode expr_condition, PtrNode expr_increment, PtrNode statement)
+        : expr_init(move(expr_init)), expr_condition(move(expr_condition)), expr_increment(move(expr_increment)), 
+          statement(move(statement)), count(curr_count++)
+    {}
+};
+
 
 struct Node
 {
     variant<
+        NodeNull,
         NodeNum,
         NodeIdent,
         NodePunct,
         NodeAssign,
         NodeRet,
         NodeCompoundStatement,
-        NodeIf> val;
+        NodeIf,
+        NodeFor> val;
 };
 
 static void generate(const Node& node);
+
+static void generate(const NodeNull& node){
+    ass_push("rax");
+}
 
 static void generate(const NodeIf& node){
     generate(*node.expr);
@@ -117,7 +139,32 @@ static void generate(const NodeIf& node){
         ass_pop("rax");
     }
     ass_label(".L.end." + count);
+    ass_push("rax");
 }
+
+static void generate(const NodeFor& node){
+    auto count = to_string(node.count);
+    generate(*node.expr_init);
+    ass_pop("rax");
+    ass_label(".L.for." + count);
+    if (get_if<NodeNull>(&node.expr_condition->val)){
+        ass_push(1);
+    }
+    else {
+        generate(*node.expr_condition);
+    }
+    ass_pop("rax");
+    cout << "cmp $0" << ", %rax" << endl;
+    cout << "je " << ".L.end." + count << endl;
+    generate(*node.statement);
+    ass_pop("rax");
+    generate(*node.expr_increment);
+    ass_pop("rax");
+    cout << "jmp " << ".L.for." + count << endl;
+    ass_label(".L.end." + count);
+    ass_push("rax");
+}
+
 
 
 static void generate(const NodeNum& node){
@@ -128,6 +175,7 @@ static void generate(const NodeCompoundStatement& node){
         generate(*pNode);
         ass_pop("rax");
     }
+    ass_push("rax");
 }
 static void generate(const NodeIdent& node){
     cout << "  mov " << ass_stack_reg(node.stack_num) << ", %rax" << endl;
@@ -184,7 +232,7 @@ static void generate(const NodePunct& node){
         cout << "  movzb %al, %rax" << endl;
     }
     else{
-        abort();
+        throw;
     }
     ass_push("rax");
 }
@@ -225,6 +273,6 @@ static unique_ptr<Node> token_to_node(const Token& token){
     if (token.kind == TokenKind::Ident){
         return make_unique<Node>(NodeIdent{token.ident, token.val});
     }
-    abort();
+    throw;
 }
 

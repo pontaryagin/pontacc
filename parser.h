@@ -31,7 +31,7 @@ static auto get_node(T&& node){
 }
 
 static auto get_null_statement(){
-    return get_node(NodeCompoundStatement{});
+    return get_node(NodeNull{});
 }
 
 using PaserType = function<pair<PtrNode,int>(const vector<Token>& tokens, int start_pos)>;
@@ -84,22 +84,22 @@ pair<unique_ptr<Node>,int> parse_unary(const vector<Token>& tokens, int start_po
 
 //  mul     = unary ("*" unary | "/" unary)*
 pair<unique_ptr<Node>,int> parse_mul(const vector<Token>& tokens, int pos){
-    parse_left_joint_binary_operator(tokens, pos, {"*", "/"}, parse_unary);
+    return parse_left_joint_binary_operator(tokens, pos, {"*", "/"}, parse_unary);
 }
 
 //  add    = mul ("+" mul | "-" mul)*
 pair<unique_ptr<Node>,int> parse_add(const vector<Token>& tokens, int pos){
-    parse_left_joint_binary_operator(tokens, pos, {"+", "-"}, parse_mul);
+    return parse_left_joint_binary_operator(tokens, pos, {"+", "-"}, parse_mul);
 }
 
 //  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 pair<unique_ptr<Node>,int> parse_relational(const vector<Token>& tokens, int pos){
-    parse_left_joint_binary_operator(tokens, pos, {"<", "<=", ">", ">="}, parse_mul);
+    return parse_left_joint_binary_operator(tokens, pos, {"<", "<=", ">", ">="}, parse_add);
 }
 
 //  equality   = relational ("==" relational | "!=" relational)*
 pair<unique_ptr<Node>,int> parse_equality(const vector<Token>& tokens, int pos){
-    parse_left_joint_binary_operator(tokens, pos, {"==", "!="}, parse_mul);
+    return parse_left_joint_binary_operator(tokens, pos, {"==", "!="}, parse_relational);
 }
 
 // assign     = equality ("=" assign)?
@@ -149,19 +149,21 @@ pair<unique_ptr<Node>,int> parse_expr_statement(const vector<Token>& tokens, int
     return {move(pNode), pos2+1};
 }
 
-// // statement_for = "for" "(" expr_statement expr_statement expr_statement ")" statement
-// pair<unique_ptr<Node>,int> parse_statement_for(const vector<Token>& tokens, int start_pos){
-//     assert(is_keyword(tokens, start_pos, "if"));
-//     expect_punct(tokens, start_pos, "(");
-//     auto [expr, pos] = parse_expr(tokens, start_pos+1);
-//     expect_punct(tokens, pos, ")");
-//     auto [statement_if, pos2] = parse_statement(tokens, pos+1);
-//     if (is_keyword(tokens, pos2, "else")){
-//         auto [statement_else, pos3] = parse_statement(tokens, pos2+1);
-//         return {get_node(NodeIf(move(expr), move(statement_if), move(statement_else))), pos3};
-//     }
-//     return {get_node(NodeIf(move(expr), move(statement_if), nullptr)), pos2};
-// }
+// statement_for = "for" "(" expr_statement expr_statement expr? ")" statement
+pair<unique_ptr<Node>,int> parse_statement_for(const vector<Token>& tokens, int pos){
+    assert(is_keyword(tokens, pos, "for"));
+    expect_punct(tokens, pos+1, "(");
+    auto [expr1, pos1] = parse_expr_statement(tokens, pos+2);
+    auto [expr2, pos2] = parse_expr_statement(tokens, pos1);
+    PtrNode expr3 = get_null_statement();
+    int pos3 = pos2; 
+    if (!is_punct(tokens, pos2, ")")) {
+        tie(expr3, pos3) = parse_expr(tokens, pos2);
+        expect_punct(tokens, pos3, ")");
+    }
+    auto [statement, pos_end] = parse_statement(tokens, pos3+1);
+    return {get_node(NodeFor(move(expr1), move(expr2), move(expr3), move(statement))), pos_end};
+}
 
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
 pair<unique_ptr<Node>,int> parse_statement_if(const vector<Token>& tokens, int pos){
@@ -182,9 +184,9 @@ pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int star
     if (is_keyword(tokens, start_pos, "if")){
         return parse_statement_if(tokens, start_pos);
     }
-    // if (is_keyword(tokens, start_pos, "for")){
-    //     return parse_statement_for(tokens, start_pos);
-    // }
+    if (is_keyword(tokens, start_pos, "for")){
+        return parse_statement_for(tokens, start_pos);
+    }
     if (is_punct(tokens, start_pos, "{")){
         return parse_compound_statement(tokens, start_pos+1);
     }

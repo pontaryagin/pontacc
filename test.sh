@@ -20,6 +20,7 @@ assert() {
 assert 2 '{ return 5-2-1; }'
 assert 11 '{ a_aa=1; BBB_AAA=3; return 2*(a_aa+BBB_AAA)+3; }'
 assert 1 '{ if (1) { if (0) return 3; else return 1; } return 4; }'
+assert 5 '{ i = 1; for (;i<5;) { i = i+1;} return i; }'
 
 assert 0 '{ return 0; }'
 assert 42 '{ return 42; }'
