@@ -10,6 +10,7 @@ static unique_ptr<Node> token_to_node(const Token& token){
     if (token.kind == TokenKind::Ident){
         return make_unique<Node>(NodeIdent{token.ident, token.val});
     }
+    verror_at(token, "Unknown token for token_to_node");
     throw;
 }
 
@@ -175,6 +176,16 @@ pair<unique_ptr<Node>,int> parse_statement_for(const vector<Token>& tokens, int 
     return {get_node(NodeFor(move(expr1), move(expr2), move(expr3), move(statement))), pos_end};
 }
 
+// statement_while = "while" "(" expr ")" statement
+pair<unique_ptr<Node>,int> parse_statement_while(const vector<Token>& tokens, int pos){
+    assert(is_keyword(tokens, pos, "while"));
+    expect_punct(tokens, pos+1, "(");
+    auto [expr, pos_expr] = parse_expr(tokens, pos+2);
+    expect_punct(tokens, pos_expr, ")");
+    auto [statement, pos_statement] = parse_statement(tokens, pos_expr+1);
+    return {get_node(NodeFor(get_null_statement(), move(expr), get_null_statement(), move(statement))), pos_statement};
+}
+
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
 pair<unique_ptr<Node>,int> parse_statement_if(const vector<Token>& tokens, int pos){
     assert(is_keyword(tokens, pos, "if"));
@@ -189,21 +200,24 @@ pair<unique_ptr<Node>,int> parse_statement_if(const vector<Token>& tokens, int p
     return {get_node(NodeIf(move(expr), move(statement_if), nullptr)), pos3};
 }
 
-// statement = statement_if | statement_for | "{" compound-statement |  "return" expr ";" |  expr_statement |
-pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int start_pos){
-    if (is_keyword(tokens, start_pos, "if")){
-        return parse_statement_if(tokens, start_pos);
+// statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |
+pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int pos){
+    if (is_keyword(tokens, pos, "if")){
+        return parse_statement_if(tokens, pos);
     }
-    if (is_keyword(tokens, start_pos, "for")){
-        return parse_statement_for(tokens, start_pos);
+    if (is_keyword(tokens, pos, "for")){
+        return parse_statement_for(tokens, pos);
     }
-    if (is_punct(tokens, start_pos, "{")){
-        return parse_compound_statement(tokens, start_pos+1);
+    if (is_keyword(tokens, pos, "while")){
+        return parse_statement_while(tokens, pos);
     }
-    if (is_keyword(tokens, start_pos, "return")){
-        return parse_statement_return(tokens, start_pos);
+    if (is_punct(tokens, pos, "{")){
+        return parse_compound_statement(tokens, pos+1);
     }
-    return parse_expr_statement(tokens, start_pos);
+    if (is_keyword(tokens, pos, "return")){
+        return parse_statement_return(tokens, pos);
+    }
+    return parse_expr_statement(tokens, pos);
 }
 
 // program    = "{" compound-statement

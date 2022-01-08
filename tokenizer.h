@@ -14,6 +14,9 @@ inline set<string> keywords = {
     "if",
     "else",
     "for",
+    "while",
+    "continue",
+    "break"
 };
 
 struct Token {

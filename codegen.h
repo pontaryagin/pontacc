@@ -66,7 +66,6 @@ public:
     {}
 };
 
-
 struct Node
 {
     variant<
@@ -229,7 +228,7 @@ static void generate(const NodePunct& node){
         cout << "  movzb %al, %rax" << endl;
     }
     else{
-        throw;
+        verror_at(node.token, "Unknown token in generate for NodePunct");
     }
 }
 
