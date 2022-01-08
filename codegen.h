@@ -259,13 +259,3 @@ void gen_assembly(const Node& node){
     cout << "  ret\n";
 }
 
-static unique_ptr<Node> token_to_node(const Token& token){
-    if (token.kind == TokenKind::Num){
-        return make_unique<Node>(NodeNum{token.val});
-    }
-    if (token.kind == TokenKind::Ident){
-        return make_unique<Node>(NodeIdent{token.ident, token.val});
-    }
-    throw;
-}
-

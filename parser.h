@@ -3,6 +3,16 @@
 #include "tokenizer.h"
 #include "codegen.h"
 
+static unique_ptr<Node> token_to_node(const Token& token){
+    if (token.kind == TokenKind::Num){
+        return make_unique<Node>(NodeNum{token.val});
+    }
+    if (token.kind == TokenKind::Ident){
+        return make_unique<Node>(NodeIdent{token.ident, token.val});
+    }
+    throw;
+}
+
 static bool is_punct(const vector<Token>& tokens, int pos, const string& op){
     if (pos >= tokens.size()){
         verror_at(tokens.back(), "'" + op + "' is expected", true);
