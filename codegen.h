@@ -12,9 +12,19 @@ struct NodeNum {
     int num;
 };
 
-struct NodeIdent {
+struct NodeVar {
     string name;
-    int stack_num;
+    int offset;
+};
+
+struct NodeAddress {
+    Token token;
+    PtrNode var;
+};
+
+struct NodeDeref {
+    Token token;
+    PtrNode var;
 };
 
 struct NodePunct{
@@ -71,7 +81,9 @@ struct Node
     variant<
         NodeNull,
         NodeNum,
-        NodeIdent,
+        NodeVar,
+        NodeAddress,
+        NodeDeref,
         NodePunct,
         NodeAssign,
         NodeRet,
@@ -121,14 +133,24 @@ static void ass_epilogue(){
     cout << "  pop %rbp" << endl;
 }
 
-static string ass_stack_reg(int stack_num){
-    return to_string(-8*(stack_num)) + "(%rbp)";
+static string ass_stack_reg(const NodeVar& node){
+    return to_string(-8*(node.offset)) + "(%rbp)";
+}
+
+static optional<string> ass_stack_reg(const Node& node){
+    if (auto pvar = get_if<NodeVar>(&node.val)){
+        return ass_stack_reg(*pvar);
+    }
+    else if (auto pvar = get_if<NodeDeref>(&node.val)){
+        return ass_stack_reg(*pvar->var);
+    }
+    return nullopt;
 }
 
 
 static void generate(const Node& node);
 
-static void generate(const NodeNull& node){
+static void generate([[maybe_unused]]const NodeNull& node){
 }
 
 static void generate(const NodeIf& node){
@@ -172,8 +194,21 @@ static void generate(const NodeCompoundStatement& node){
     }
 }
 
-static void generate(const NodeIdent& node){
-    ass_mov(ass_stack_reg(node.stack_num), "%rax");
+static void generate(const NodeVar& node){
+    ass_mov(ass_stack_reg(node), "%rax");
+}
+
+static void generate(const NodeAddress& node){
+    auto var = ass_stack_reg(*node.var);
+    if (!var){
+        verror_at(node.token, " cannot take address of lvalue");
+    }
+    cout << "  lea " << *var << ", %rax" << endl;
+}
+
+static void generate(const NodeDeref& node){
+    generate(*node.var);
+    ass_mov("(%rax)", "%rax");
 }
 
 static void generate(const NodePunct& node){
@@ -234,8 +269,19 @@ static void generate(const NodePunct& node){
 
 static void generate(const NodeAssign& node){
     generate(*node.rhs);
-    auto& ident = get<NodeIdent>(node.lhs->val);
-    cout << "  mov %rax, " << ass_stack_reg(ident.stack_num) << endl;
+    if (auto ident = get_if<NodeVar>(&node.lhs->val)){
+        cout << "  mov %rax, " << ass_stack_reg(*ident) << endl;
+
+    }
+    else if (auto ident = get_if<NodeDeref>(&node.lhs->val)) {
+        ass_push("%rax");
+        generate(*ident->var);
+        ass_pop("%rdi");
+        ass_mov("%rdi", "(%rax)");
+    }
+    else {
+        verror_at(node.token, "Left hand side of assignment should be identifier");
+    }
 }
 
 static void generate(const NodeRet& node){

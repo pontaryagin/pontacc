@@ -6,7 +6,7 @@ pontacc: main.o
 	$(CXX) $(CFLAGS) -o pontacc main.o $(LDFLAGS)
 
 %.o: %.cpp $(INCLUDES)
-	$(CXX) $(CFLAGS) -o $@ -c $<
+	$(CXX) $(CFLAGS) -Wall -Wextra -Wno-sign-compare -Wno-unused-function -o $@ -c $<
 
 test: pontacc
 	./test.sh

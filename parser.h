@@ -8,17 +8,27 @@ static unique_ptr<Node> token_to_node(const Token& token){
         return make_unique<Node>(NodeNum{token.val});
     }
     if (token.kind == TokenKind::Ident){
-        return make_unique<Node>(NodeIdent{token.ident, token.val});
+        return make_unique<Node>(NodeVar{token.ident, token.val});
     }
     verror_at(token, "Unknown token for token_to_node");
     throw;
 }
 
-static bool is_punct(const vector<Token>& tokens, int pos, const string& op){
+static bool is_kind(const vector<Token>& tokens, int pos, TokenKind kind){
     if (pos >= tokens.size()){
-        verror_at(tokens.back(), "'" + op + "' is expected", true);
+        verror_at(tokens.back(), to_string(pos) + " is out of range of tokens", true);
     }
-    return tokens.at(pos).kind == TokenKind::Punct && tokens.at(pos).punct == op;
+    return tokens.at(pos).kind == kind;
+}
+
+static void expect_kind(const vector<Token>& tokens, int pos, TokenKind kind){
+    if (!is_kind(tokens, pos, kind)){
+        verror_at(tokens.back(), "TokenKind " + to_string((int)kind) + " is expected", true);
+    }
+}
+
+static bool is_punct(const vector<Token>& tokens, int pos, const string& op){
+    return is_kind(tokens, pos, TokenKind::Punct) && tokens.at(pos).punct == op;
 }
 
 static void expect_punct(const vector<Token>& tokens, int pos, const string& op){
@@ -79,19 +89,25 @@ pair<unique_ptr<Node>,int> parse_primary(const vector<Token>& tokens, int start_
     return {token_to_node(tokens.at(start_pos)), start_pos+1};
 }
 
-// unary = ("+" | "-") unary | primary
-pair<unique_ptr<Node>,int> parse_unary(const vector<Token>& tokens, int start_pos){
-    if (tokens.at(start_pos).punct == "+"){
-        return parse_unary(tokens, start_pos+1);
+// unary = ("+" | "-" | "*" | "&") unary | primary
+pair<unique_ptr<Node>,int> parse_unary(const vector<Token>& tokens, int pos){
+    if (is_punct(tokens, pos, "+")){
+        return parse_unary(tokens, pos+1);
     }
-    else if (tokens.at(start_pos).punct == "-"){
-        auto [pNode, pos] = parse_unary(tokens, start_pos+1);
-        return {get_node(NodePunct{tokens.at(start_pos), get_node(NodeNum{0}), move(pNode)}), pos};
+    else if (is_punct(tokens, pos, "-")){
+        auto [pNode, pos_end] = parse_unary(tokens, pos+1);
+        return {get_node(NodePunct{tokens.at(pos), get_node(NodeNum{0}), move(pNode)}), pos_end};
     }
-    return parse_primary(tokens, start_pos);
+    else if (is_punct(tokens, pos, "*")){
+        auto [pNode, pos_end] = parse_unary(tokens, pos+1);
+        return {get_node(NodeDeref{tokens.at(pos), move(pNode)}), pos_end};
+    }
+    else if (is_punct(tokens, pos, "&")){
+        auto [pNode, pos_end] = parse_unary(tokens, pos+1);
+        return {get_node(NodeAddress{tokens.at(pos), move(pNode)}), pos_end};
+    }
+    return parse_primary(tokens, pos);
 }
-
-
 
 //  mul     = unary ("*" unary | "/" unary)*
 pair<unique_ptr<Node>,int> parse_mul(const vector<Token>& tokens, int pos){
