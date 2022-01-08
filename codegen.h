@@ -2,51 +2,6 @@
 #include "common.h"
 #include "tokenizer.h"
 
-void gen_header(){
-    cout << "  .global main\n";
-}
-
-static void ass_pop(string_view reg){
-    cout << "  pop " << reg << endl;
-}
-
-static void ass_push(string_view reg){
-    cout << "  push " << reg << endl;
-}
-
-static void ass_push(int num){
-    cout << "  push $" << num << endl;
-}
-
-static void ass_mov(string from, string to){
-    cout << "  mov " << from << ", " << to << endl;
-}
-
-static void ass_mov(int from, string to){
-    cout << "  mov " << "$" << from << ", " << to << endl;
-}
-
-static void ass_label(string s){
-    cout << s << ":" << endl;
-}
-
-static void ass_prologue(int indent_count){
-    indent_count = round_up(indent_count, 2); // Some function requires 16-byte alignment for rsp register
-    cout << "  push %rbp" << endl;
-    cout << "  mov %rsp, %rbp" << endl;
-    cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
-}
-
-static void ass_epilogue(){
-    cout << ".L.return:" << endl;
-    cout << "  mov %rbp, %rsp" << endl;
-    cout << "  pop %rbp" << endl;
-}
-
-static string ass_stack_reg(int stack_num){
-    return to_string(-8*(stack_num)) + "(%rbp)";
-}
-
 struct Node;
 
 using PtrNode = unique_ptr<Node>;
@@ -125,6 +80,52 @@ struct Node
         NodeIf,
         NodeFor> val;
 };
+
+void gen_header(){
+    cout << "  .global main\n";
+}
+
+static void ass_pop(string_view reg){
+    cout << "  pop " << reg << endl;
+}
+
+static void ass_push(string_view reg){
+    cout << "  push " << reg << endl;
+}
+
+static void ass_push(int num){
+    cout << "  push $" << num << endl;
+}
+
+static void ass_mov(string from, string to){
+    cout << "  mov " << from << ", " << to << endl;
+}
+
+static void ass_mov(int from, string to){
+    cout << "  mov " << "$" << from << ", " << to << endl;
+}
+
+static void ass_label(string s){
+    cout << s << ":" << endl;
+}
+
+static void ass_prologue(int indent_count){
+    indent_count = round_up(indent_count, 2); // Some function requires 16-byte alignment for rsp register
+    cout << "  push %rbp" << endl;
+    cout << "  mov %rsp, %rbp" << endl;
+    cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
+}
+
+static void ass_epilogue(){
+    cout << ".L.return:" << endl;
+    cout << "  mov %rbp, %rsp" << endl;
+    cout << "  pop %rbp" << endl;
+}
+
+static string ass_stack_reg(int stack_num){
+    return to_string(-8*(stack_num)) + "(%rbp)";
+}
+
 
 static void generate(const Node& node);
 
