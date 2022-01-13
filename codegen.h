@@ -53,7 +53,7 @@ struct NodeRet{
 };
 
 struct NodeCompoundStatement{
-    vector<unique_ptr<Node>> pNodes;
+    vector<PtrNode> pNodes;
 };
 
 
@@ -85,6 +85,15 @@ public:
     {}
 };
 
+struct NodeInitializer {
+    PtrNode var;
+    PtrNode expr;
+};
+
+struct NodeDeclaration {
+    vector<PtrNode> pNodes;
+};
+
 struct Node
 {
     using NodeUnderlying = variant<
@@ -98,7 +107,9 @@ struct Node
         NodeRet,
         NodeCompoundStatement,
         NodeIf,
-        NodeFor>;
+        NodeFor,
+        NodeInitializer,
+        NodeDeclaration>;
     NodeUnderlying val;
     optional<Type> type;
 };
@@ -143,7 +154,6 @@ Type NodeAssign::get_type(){
         if(!node_var){
             verror_at(token, "variable should come at lhs of assignment");
         }
-        var_types[node_var->name] = *tr;
     }
     else {
         if(*tl!=*tr){
@@ -160,6 +170,10 @@ Type NodeRet::get_type(){
 optional<Type> NodeVar::get_type(){
     return var_types[name];
 }
+
+// Type NodeInitializer::get_type(){
+//     return var.get_type();
+// }
 
 void gen_header(){
     cout << "  .global main\n";
@@ -382,6 +396,19 @@ static void generate(const NodeAssign& node){
 static void generate(const NodeRet& node){
     generate(*node.pNode);
     cout << "  jmp .L.return" << endl;
+}
+
+static void generate(const NodeInitializer& node){
+    if (node.expr){
+        generate(*node.expr);
+        ass_mov("%rax", ass_stack_reg(get<NodeVar>(node.var->val)));
+    }
+}
+
+static void generate(const NodeDeclaration& node){
+    for (auto& pNode: node.pNodes){
+        generate(*pNode);
+    }
 }
 
 static void generate(const Node& node){

@@ -39,7 +39,7 @@ static bool is_kind(const vector<Token>& tokens, int pos, TokenKind kind){
 
 static void expect_kind(const vector<Token>& tokens, int pos, TokenKind kind){
     if (!is_kind(tokens, pos, kind)){
-        verror_at(tokens.back(), "TokenKind " + to_string((int)kind) + " is expected", true);
+        verror_at(tokens.at(pos), "TokenKind " + to_string((int)kind) + " is expected", false);
     }
 }
 
@@ -50,7 +50,6 @@ static bool is_punct(const vector<Token>& tokens, int pos, const string& op){
 static void expect_punct(const vector<Token>& tokens, int pos, const string& op){
     if (!is_punct(tokens, pos, op)){
         verror_at(tokens.at(pos), "'" + op + "' is expected");
-        return;
     }
 }
 
@@ -59,6 +58,12 @@ static bool is_keyword(const vector<Token>& tokens, int pos, const string& keywo
         verror_at(tokens.back(), "'" + keyword + "' is expected", true);
     }
     return tokens.at(pos).kind == TokenKind::Keyword && tokens.at(pos).ident == keyword;
+}
+
+static void expect_keyword(const vector<Token>& tokens, int pos, const string& keyword){
+    if (!is_keyword(tokens, pos, keyword)){
+        verror_at(tokens.at(pos), "'" + keyword + "' is expected");
+    }
 }
 
 
@@ -82,8 +87,56 @@ static pair<unique_ptr<Node>,int> parse_left_joint_binary_operator(const vector<
 
 pair<unique_ptr<Node>,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
+// declspec = "int"
+pair<optional<Type>, int> try_parse_declspec(const vector<Token>& tokens, int pos) {
+    if(is_keyword(tokens, pos, "int")){
+        return {Type{TypeKind::Int, 0}, pos+1};
+    }
+    return {std::nullopt, pos};
+}
+
+// declarator = "*"* ident
+pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type type) {
+    while(is_punct(tokens, pos, "*")){
+        ++pos;
+        ++type.ptr;
+    }
+    expect_kind(tokens, pos, TokenKind::Ident);
+    var_types[tokens.at(pos).ident] = type;
+    auto pNode = token_to_node(tokens.at(pos));
+    pNode->type = type;
+    return {move(pNode), pos+1};
+}
+
+// initializer = declarator ("=" expr)?
+pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type) {
+    auto [pNode, pos_decl] = parse_declarator(tokens, pos, type);
+    if (is_punct(tokens, pos_decl, "=")){
+        auto [expr, pos_expr] = parse_expr(tokens, pos_decl+1);
+        return {get_node(NodeInitializer{move(pNode), move(expr)}, type), pos_expr};
+    }
+    return {get_node(NodeInitializer{move(pNode), nullptr}, type), pos_decl};
+}
+
+
+// declaration = declspec (initializer ("," initializer)*)? ";"
+pair<PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int pos) {
+    auto [type, pos1] = try_parse_declspec(tokens, pos);
+    if (!type){
+        return {nullptr, pos1};
+    }
+    vector<PtrNode> pNodes;
+    PtrNode pNode;
+    do {
+        tie(pNode, pos1) = parse_initializer(tokens, pos1, *type);
+        pNodes.emplace_back(move(pNode));
+    } while(is_punct(tokens, pos1++, ","));
+    expect_punct(tokens, pos1-1, ";");
+    return {get_node(NodeDeclaration{move(pNodes)}, nullopt), pos1};
+}
+
 //  primary = num | ident | "(" expr ")"
-pair<unique_ptr<Node>,int> parse_primary(const vector<Token>& tokens, int start_pos){
+pair<PtrNode,int> parse_primary(const vector<Token>& tokens, int start_pos){
     auto token_val = tokens.at(start_pos).punct;
     if (is_punct(tokens, start_pos, "(")){
         auto [pNode, pos] = parse_expr(tokens, start_pos+1);
@@ -153,12 +206,16 @@ pair<unique_ptr<Node>,int> parse_expr(const vector<Token>& tokens, int start_pos
 }
 
 pair<unique_ptr<Node>,int> parse_statement(const vector<Token>& tokens, int pos);
-// compound-statement = statement* "}"
+
+// compound-statement = (declaration | statement)* "}"
 pair<unique_ptr<Node>,int> parse_compound_statement(const vector<Token>& tokens, int pos){
     vector<unique_ptr<Node>> pNodes;
     while (!is_punct(tokens, pos, "}")){
-        auto [pNode, pos_] = parse_statement(tokens, pos);
-        pos = pos_;
+        PtrNode pNode;
+        tie(pNode, pos) = try_parse_declaration(tokens, pos);
+        if(!pNode){
+            tie(pNode, pos) = parse_statement(tokens, pos);
+        }
         pNodes.emplace_back(move(pNode));
     }
     return {get_node(NodeCompoundStatement{move(pNodes)}, nullopt), pos+1};
