@@ -35,5 +35,11 @@ constexpr int round_up(int n, int align){
     return (n + align - 1) / align * align;
 }
 
-
+// cast by perfect forwarding between variant
+template <class ToType, class FromType>
+ToType variant_cast(FromType&& v)
+{
+    return std::visit([](auto&& arg) -> ToType{ return forward<decltype(arg)>(arg); },
+                    std::forward<FromType>(v));
+}
 
