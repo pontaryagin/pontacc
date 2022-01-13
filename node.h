@@ -11,12 +11,16 @@ struct NodeNull{};
 
 struct NodeNum{
     int num;
+    Type get_type(){return Type{TypeKind::Int, 0}; }
+    NodeNum(int num): num(num){}
+    NodeNum(const Token& token): num(token.val){}
 };
 
 struct NodeVar{
     string name;
     int offset;
     optional<Type> get_type();
+    NodeVar(const Token& token): name(token.ident), offset(token.val){}
 };
 
 struct NodeAddress{

@@ -19,17 +19,6 @@ static auto get_null_statement(){
     return get_node(NodeNull{}, nullopt);
 }
 
-static unique_ptr<Node> token_to_node(const Token& token){
-    if (token.kind == TokenKind::Num){
-        return get_node(NodeNum{token.val}, Type{TypeKind::Int});
-    }
-    if (token.kind == TokenKind::Ident){
-        return get_typed_node(NodeVar{token.ident, token.val});
-    }
-    verror_at(token, "Unknown token for token_to_node");
-    throw;
-}
-
 static bool is_kind(const vector<Token>& tokens, int pos, TokenKind kind){
     if (pos >= tokens.size()){
         verror_at(tokens.back(), to_string(pos) + " is out of range of tokens", true);
@@ -103,8 +92,7 @@ pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type t
     }
     expect_kind(tokens, pos, TokenKind::Ident);
     var_types[tokens.at(pos).ident] = type;
-    auto pNode = token_to_node(tokens.at(pos));
-    pNode->type = type;
+    auto pNode = get_node(NodeVar(tokens.at(pos)), type);
     return {move(pNode), pos+1};
 }
 
@@ -144,9 +132,9 @@ pair<PtrNode,int> parse_primary(const vector<Token>& tokens, int start_pos){
         return {move(pNode), pos+1};
     }
     else if (tokens.at(start_pos).kind == TokenKind::Ident){
-        return {token_to_node(tokens.at(start_pos)), start_pos+1};
+        return {get_typed_node(NodeVar(tokens.at(start_pos))), start_pos+1};
     }
-    return {token_to_node(tokens.at(start_pos)), start_pos+1};
+    return {get_typed_node(NodeNum(tokens.at(start_pos))), start_pos+1};
 }
 
 // unary = ("+" | "-" | "*" | "&") unary | primary
