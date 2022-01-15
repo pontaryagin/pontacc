@@ -96,7 +96,7 @@ struct Token {
 
 using Tokens = vector<Token>;
 
-Tokens tokenize(string_view text){
+inline Tokens tokenize(string_view text){
     Tokens tokens;
     int p = 0;
     while(p < text.size()){
@@ -110,11 +110,11 @@ Tokens tokenize(string_view text){
 }
 
 
-void verror_at(const Token& token, string_view fmt, bool next=false){
+inline void verror_at(const Token& token, string_view fmt, bool next=false){
     verror_at(token.statement, token.loc, fmt, next);
 }
 
-void assert_at(bool check, const Token& token, string_view fmt, bool next=false){
+inline void assert_at(bool check, const Token& token, string_view fmt, bool next=false){
     if (!check){
         verror_at(token, fmt, next);
     }

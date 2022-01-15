@@ -1,6 +1,5 @@
 #include "common.h"
 #include "parser.h"
-#include "codegen.h"
 #include "tokenizer.h"
 
 int main(int argc, char **argv){
@@ -10,5 +9,5 @@ int main(int argc, char **argv){
     if (pos != tokens.size()) {
         verror_at(tokens.at(pos), "Not parsed");
     }
-    gen_assembly(node);
+    generate_main(node);
 }

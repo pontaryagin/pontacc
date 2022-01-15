@@ -1,4 +1,3 @@
-#pragma once
 #include "node.h"
 
 void gen_header(){
@@ -227,7 +226,7 @@ void NodeDeclaration::generate(){
     }
 }
 
-void gen_assembly(const PtrNode& node){
+void generate_main(const PtrNode& node){
     gen_header();
     cout << "main:\n";
     ass_prologue(Token::indents.size()+1);
