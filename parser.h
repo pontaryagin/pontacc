@@ -50,7 +50,7 @@ pair<PtrTyped,int> parse_left_joint_binary_operator(const vector<Token>& tokens,
 pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
 // declspec = "int"
-pair<optional<Type>, int> try_parse_declspec(const vector<Token>& tokens, int pos);
+tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos);
 
 // declarator = "*"* ident
 pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type type);
@@ -59,7 +59,7 @@ pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type t
 pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type);
 
 // declaration = declspec (initializer ("," initializer)*)? ";"
-pair<PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int pos);
+tuple<bool, PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int pos);
 
 //  primary = num | ident | "(" expr ")"
 pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int start_pos);

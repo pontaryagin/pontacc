@@ -4,16 +4,15 @@
 #include "type.h"
 #include "tokenizer.h"
 
-static inline map<string, optional<Type>> var_types;
+static inline map<string, Type> var_types;
 
 struct INode{
     virtual void generate() = 0;
 };
 using PtrNode = unique_ptr<INode>;
-using OptionalType = optional<Type>;
 
 struct ITyped: virtual INode {
-    virtual optional<Type> get_type() = 0;
+    virtual Type get_type() = 0;
 };
 
 using PtrTyped = unique_ptr<ITyped>;
@@ -30,7 +29,7 @@ struct NodeNum: ITyped{
     NodeNum(int num): num(num){}
     NodeNum(const Token& token): num(token.val){}
 
-    OptionalType get_type() override {return Type{TypeKind::Int, 0}; }
+    Type get_type() override {return Type{TypeKind::Int, 0}; }
     void generate() override;
 };
 
@@ -38,7 +37,7 @@ struct NodeVar: ITyped{
     string name;
     int offset;
     NodeVar(const Token& token): name(token.ident), offset(token.val){}
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
 };
 
@@ -47,7 +46,7 @@ struct NodeAddress: ITyped{
     PtrTyped var;
     NodeAddress(Token token, PtrTyped var): token(token), var(move(var)){}
 
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
 };
 
@@ -57,7 +56,7 @@ struct NodeDeref: ITyped{
 
     NodeDeref(Token token, PtrTyped var)
         : token(token), var(move(var)){}
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
 };
 
@@ -68,7 +67,7 @@ struct NodePunct: ITyped{
     NodePunct(const Token& token, PtrTyped lhs, PtrTyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
 
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
     void ass_adjust_address_mul();
     void ass_adjust_address_div();
@@ -80,7 +79,7 @@ struct NodeAssign: ITyped{
 
     NodeAssign(Token token, PtrTyped lhs, PtrTyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
 };
 
@@ -89,7 +88,7 @@ struct NodeRet: ITyped{
     PtrTyped pNode;
 
     NodeRet(Token token, PtrTyped pNode): token(token), pNode(move(pNode)){}
-    OptionalType get_type() override;
+    Type get_type() override;
     void generate() override;
 };
 
@@ -140,7 +139,7 @@ struct NodeInitializer: ITyped {
     NodeInitializer(PtrNode var, PtrNode expr, Type type)
         : var(move(var)), expr(move(expr)), type(type){}
 
-    OptionalType get_type() override { return type; }
+    Type get_type() override { return type; }
     void generate() override;
 };
 

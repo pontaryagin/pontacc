@@ -113,8 +113,8 @@ void NodeDeref::generate(){
 }
 
 void NodePunct::ass_adjust_address_mul(){
-    auto r_ptr = rhs->get_type()->ptr;
-    auto l_ptr = lhs->get_type()->ptr;
+    auto r_ptr = rhs->get_type().ptr;
+    auto l_ptr = lhs->get_type().ptr;
     if (r_ptr>0 && l_ptr == 0){
         cout << "  imul $8, %rax" << endl;
     }
@@ -124,8 +124,8 @@ void NodePunct::ass_adjust_address_mul(){
 }
 
 void NodePunct::ass_adjust_address_div(){
-    auto r_ptr = rhs->get_type()->ptr;
-    auto l_ptr = lhs->get_type()->ptr;
+    auto r_ptr = rhs->get_type().ptr;
+    auto l_ptr = lhs->get_type().ptr;
     if (r_ptr > 0 && l_ptr > 0){
         ass_mov("$8", "%rdi");
         cout << "  cqo" << endl;
