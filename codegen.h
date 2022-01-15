@@ -42,87 +42,80 @@ static void ass_epilogue(){
     cout << "  pop %rbp" << endl;
 }
 
-static string ass_stack_reg(const NodeVar& node){
-    return to_string(-8*(node.offset)) + "(%rbp)";
+static string ass_stack_reg(int offset){
+    return to_string(-8*(offset)) + "(%rbp)";
 }
 
-static optional<string> ass_stack_reg(const Node& node){
-    if (auto pvar = get_if<NodeVar>(&node.val)){
-        return ass_stack_reg(*pvar);
+static optional<string> ass_stack_reg(const INode* node){
+    if (auto p = dynamic_cast<const NodeVar*>(node)){
+        return ass_stack_reg(p->offset);
     }
-    else if (auto pvar = get_if<NodeDeref>(&node.val)){
-        return ass_stack_reg(*pvar->var);
+    else if (auto p = dynamic_cast<const NodeDeref*>(node)){
+        return ass_stack_reg(p->var.get());
     }
     return nullopt;
 }
 
-
-static void generate(const Node& node);
-
-static void generate([[maybe_unused]]const NodeNull& node){
-}
-
-static void generate(const NodeIf& node){
-    generate(*node.expr);
-    auto count = to_string(node.count);
+void NodeIf::generate(){
+    expr->generate();
+    auto count_str = to_string(count);
     cout << "cmp $0" << ", %rax" << endl;
-    cout << "je " << ".L.else." << count << endl;
-    generate(*node.statement_if);
-    cout << "jmp " << ".L.end." << count << endl;
-    ass_label(".L.else." + count);
-    if (node.statement_else){
-        generate(*node.statement_else);
+    cout << "je " << ".L.else." << count_str << endl;
+    statement_if->generate();
+    cout << "jmp " << ".L.end." << count_str << endl;
+    ass_label(".L.else." + count_str);
+    if (statement_else){
+        statement_else->generate();
     }
-    ass_label(".L.end." + count);
+    ass_label(".L.end." + count_str);
 }
 
-static void generate(const NodeFor& node){
-    auto count = to_string(node.count);
-    generate(*node.expr_init);
-    ass_label(".L.for." + count);
-    if (get_if<NodeNull>(&node.expr_condition->val)){
+void NodeFor::generate(){
+    auto count_str = to_string(count);
+    expr_init->generate();
+    ass_label(".L.for." + count_str);
+    if (dynamic_cast<NodeNull*>(expr_condition.get())){
         ass_mov(1, "%rax");
     }
     else {
-        generate(*node.expr_condition);
+        expr_condition->generate();
     }
     cout << "cmp $0" << ", %rax" << endl;
-    cout << "je " << ".L.end." + count << endl;
-    generate(*node.statement);
-    generate(*node.expr_increment);
-    cout << "jmp " << ".L.for." + count << endl;
-    ass_label(".L.end." + count);
+    cout << "je " << ".L.end." + count_str << endl;
+    statement->generate();
+    expr_increment->generate();
+    cout << "jmp " << ".L.for." + count_str << endl;
+    ass_label(".L.end." + count_str);
 }
 
-static void generate(const NodeNum& node){
-    ass_mov(node.num, "%rax");
+void NodeNum::generate(){
+    ass_mov(num, "%rax");
 }
-static void generate(const NodeCompoundStatement& node){
-    for (auto& pNode: node.pNodes){
-        generate(*pNode);
+
+void NodeCompoundStatement::generate(){
+    for (auto& pNode: pNodes){
+        pNode->generate();
     }
 }
 
-static void generate(const NodeVar& node){
-    ass_mov(ass_stack_reg(node), "%rax");
+void NodeVar::generate(){
+    ass_mov(*ass_stack_reg(this), "%rax");
 }
 
-static void generate(const NodeAddress& node){
-    auto var = ass_stack_reg(*node.var);
-    if (!var){
-        verror_at(node.token, " cannot take address of lvalue");
-    }
-    cout << "  lea " << *var << ", %rax" << endl;
+void NodeAddress::generate(){
+    auto reg = ass_stack_reg(var.get());
+    assert_at(reg.has_value(), token, " cannot take address of lvalue");
+    cout << "  lea " << *reg << ", %rax" << endl;
 }
 
-static void generate(const NodeDeref& node){
-    generate(*node.var);
+void NodeDeref::generate(){
+    var->generate();
     ass_mov("(%rax)", "%rax");
 }
 
-static void ass_adjust_address_mul(const NodePunct& node){
-    auto r_ptr = node.rhs->type->ptr;
-    auto l_ptr = node.lhs->type->ptr;
+void NodePunct::ass_adjust_address_mul(){
+    auto r_ptr = rhs->get_type()->ptr;
+    auto l_ptr = lhs->get_type()->ptr;
     if (r_ptr>0 && l_ptr == 0){
         cout << "  imul $8, %rax" << endl;
     }
@@ -131,9 +124,9 @@ static void ass_adjust_address_mul(const NodePunct& node){
     }
 }
 
-static void ass_adjust_address_div(const NodePunct& node){
-    auto r_ptr = node.rhs->type->ptr;
-    auto l_ptr = node.lhs->type->ptr;
+void NodePunct::ass_adjust_address_div(){
+    auto r_ptr = rhs->get_type()->ptr;
+    auto l_ptr = lhs->get_type()->ptr;
     if (r_ptr > 0 && l_ptr > 0){
         ass_mov("$8", "%rdi");
         cout << "  cqo" << endl;
@@ -141,22 +134,22 @@ static void ass_adjust_address_div(const NodePunct& node){
     }
 }
 
-static void generate(const NodePunct& node){
-    generate(*node.lhs);
+void NodePunct::generate(){
+    lhs->generate();
     ass_push("%rax");
-    generate(*node.rhs);
+    rhs->generate();
     ass_mov("%rax", "%rdi");
     ass_pop("%rax");
 
-    auto& type = node.token.punct;
+    auto& type = token.punct;
     if(type == "+"){
-        ass_adjust_address_mul(node);
+        ass_adjust_address_mul();
         cout << "  add %rdi, %rax" << endl;
     }
     else if(type == "-"){
-        ass_adjust_address_mul(node);
+        ass_adjust_address_mul();
         cout << "  sub %rdi, %rax" << endl;
-        ass_adjust_address_div(node);
+        ass_adjust_address_div();
     }
     else if(type == "*"){
         cout << "  imul %rdi, %rax" << endl;
@@ -196,56 +189,49 @@ static void generate(const NodePunct& node){
         cout << "  movzb %al, %rax" << endl;
     }
     else{
-        verror_at(node.token, "Unknown token in generate for NodePunct");
+        verror_at(token, "Unknown token in generate for NodePunct");
     }
 }
 
-static void generate(const NodeAssign& node){
-    generate(*node.rhs);
-    if (auto ident = get_if<NodeVar>(&node.lhs->val)){
-        cout << "  mov %rax, " << ass_stack_reg(*ident) << endl;
-
+void NodeAssign::generate(){
+    rhs->generate();
+    if (auto ident = dynamic_cast<NodeVar*>(lhs.get())){
+        cout << "  mov %rax, " << *ass_stack_reg(ident) << endl;
     }
-    else if (auto ident = get_if<NodeDeref>(&node.lhs->val)) {
+    else if (auto ident = dynamic_cast<NodeDeref*>(lhs.get())) {
         ass_push("%rax");
-        generate(*ident->var);
+        ident->var->generate();
         ass_pop("%rdi");
         ass_mov("%rdi", "(%rax)");
     }
     else {
-        verror_at(node.token, "Left hand side of assignment should be identifier");
+        verror_at(token, "Left hand side of assignment should be identifier");
     }
 }
 
-static void generate(const NodeRet& node){
-    generate(*node.pNode);
+void NodeRet::generate(){
+    pNode->generate();
     cout << "  jmp .L.return" << endl;
 }
 
-static void generate(const NodeInitializer& node){
-    if (node.expr){
-        generate(*node.expr);
-        ass_mov("%rax", ass_stack_reg(get<NodeVar>(node.var->val)));
+void NodeInitializer::generate(){
+    if (expr){
+        expr->generate();
+        ass_mov("%rax", *ass_stack_reg(dynamic_cast<NodeVar*>(var.get())));
     }
 }
 
-static void generate(const NodeDeclaration& node){
-    for (auto& pNode: node.pNodes){
-        generate(*pNode);
+void NodeDeclaration::generate(){
+    for (auto& pNode: pNodes){
+        pNode->generate();
     }
 }
 
-static void generate(const Node& node){
-    visit([](const auto& node){
-        generate(node);
-    }, node.val);
-}
-
-void gen_assembly(const Node& node){
+void gen_assembly(const PtrNode& node){
     gen_header();
     cout << "main:\n";
     ass_prologue(Token::indents.size()+1);
-    generate(node);
+    node->generate();
     ass_epilogue();
     cout << "  ret\n";
 }

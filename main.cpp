@@ -10,5 +10,5 @@ int main(int argc, char **argv){
     if (pos != tokens.size()) {
         verror_at(tokens.at(pos), "Not parsed");
     }
-    gen_assembly(*node);
+    gen_assembly(node);
 }

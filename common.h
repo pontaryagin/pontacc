@@ -28,8 +28,6 @@ string read_all_lines(){
     return text;
 }
 
-struct Node;
-
 // Round up n
 constexpr int round_up(int n, int align){
     return (n + align - 1) / align * align;

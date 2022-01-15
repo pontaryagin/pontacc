@@ -114,3 +114,9 @@ void verror_at(const Token& token, string_view fmt, bool next=false){
     verror_at(token.statement, token.loc, fmt, next);
 }
 
+void assert_at(bool check, const Token& token, string_view fmt, bool next=false){
+    if (!check){
+        verror_at(token, fmt, next);
+    }
+}
+

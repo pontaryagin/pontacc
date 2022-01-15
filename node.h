@@ -4,65 +4,101 @@
 #include "type.h"
 #include "tokenizer.h"
 
-struct Node;
-using PtrNode = unique_ptr<Node>;
+struct INode{
+    virtual void generate() = 0;
+};
+using PtrNode = unique_ptr<INode>;
+using OptionalType = optional<Type>;
 
-struct NodeNull{};
+struct ITyped: virtual INode {
+    virtual optional<Type> get_type() = 0;
+};
 
-struct NodeNum{
+using PtrTyped = unique_ptr<ITyped>;
+
+struct NodeNull: virtual INode{
+    void generate() override {};
+};
+
+struct NodeNum: ITyped{
     int num;
-    Type get_type(){return Type{TypeKind::Int, 0}; }
+
     NodeNum(int num): num(num){}
     NodeNum(const Token& token): num(token.val){}
+
+    OptionalType get_type() override {return Type{TypeKind::Int, 0}; }
+    void generate() override;
 };
 
-struct NodeVar{
+struct NodeVar: ITyped{
     string name;
     int offset;
-    optional<Type> get_type();
     NodeVar(const Token& token): name(token.ident), offset(token.val){}
+    OptionalType get_type() override;
+    void generate() override;
 };
 
-struct NodeAddress{
+struct NodeAddress: ITyped{
     Token token;
-    PtrNode var;
+    PtrTyped var;
+    NodeAddress(Token token, PtrTyped var): token(token), var(move(var)){}
 
-    Type get_type();
+    OptionalType get_type() override;
+    void generate() override;
 };
 
-struct NodeDeref{
+struct NodeDeref: ITyped{
     Token token;
-    PtrNode var;
+    PtrTyped var;
 
-    Type get_type();
+    NodeDeref(Token token, PtrTyped var)
+        : token(token), var(move(var)){}
+    OptionalType get_type() override;
+    void generate() override;
 };
 
-struct NodePunct{
+struct NodePunct: ITyped{
     Token token;
-    PtrNode lhs, rhs;
+    PtrTyped lhs, rhs;
 
-    Type get_type();
+    NodePunct(const Token& token, PtrTyped lhs, PtrTyped rhs)
+        : token(token), lhs(move(lhs)), rhs(move(rhs)){}
+
+    OptionalType get_type() override;
+    void generate() override;
+    void ass_adjust_address_mul();
+    void ass_adjust_address_div();
 };
 
-struct NodeAssign{
+struct NodeAssign: ITyped{
     Token token;
-    unique_ptr<Node> lhs, rhs;
+    PtrTyped lhs, rhs;
 
-    Type get_type();
+    NodeAssign(Token token, PtrTyped lhs, PtrTyped rhs)
+        : token(token), lhs(move(lhs)), rhs(move(rhs)){}
+    OptionalType get_type() override;
+    void generate() override;
 };
 
-struct NodeRet{
+struct NodeRet: ITyped{
     Token token;
-    unique_ptr<Node> pNode;
-    Type get_type();
+    PtrTyped pNode;
+
+    NodeRet(Token token, PtrTyped pNode): token(token), pNode(move(pNode)){}
+    OptionalType get_type() override;
+    void generate() override;
 };
 
-struct NodeCompoundStatement{
+struct NodeCompoundStatement: INode{
     vector<PtrNode> pNodes;
+
+    NodeCompoundStatement(vector<PtrNode> pNodes)
+        : pNodes(move(pNodes)){}
+    void generate() override;
 };
 
 
-struct NodeIf{
+struct NodeIf: INode{
     PtrNode expr;
     PtrNode statement_if;
     PtrNode statement_else;
@@ -73,9 +109,10 @@ public:
     NodeIf(PtrNode expr, PtrNode statement_if, PtrNode statement_else)
         : expr(move(expr)), statement_if(move(statement_if)), statement_else(move(statement_else)), count(curr_count++)
     {}
+    void generate() override;
 };
 
-struct NodeFor{
+struct NodeFor: INode{
     PtrNode expr_init;
     PtrNode expr_condition;
     PtrNode expr_increment;
@@ -88,51 +125,44 @@ public:
         : expr_init(move(expr_init)), expr_condition(move(expr_condition)), expr_increment(move(expr_increment)), 
           statement(move(statement)), count(curr_count++)
     {}
+    void generate() override;
 };
 
-struct NodeInitializer {
+struct NodeInitializer: ITyped {
     PtrNode var;
     PtrNode expr;
+    Type type;
+
+    NodeInitializer(PtrNode var, PtrNode expr, Type type)
+        : var(move(var)), expr(move(expr)), type(type){}
+
+    OptionalType get_type() override { return type; }
+    void generate() override;
 };
 
-struct NodeDeclaration {
+struct NodeDeclaration: INode {
     vector<PtrNode> pNodes;
+
+    NodeDeclaration(vector<PtrNode> pNodes): pNodes(move(pNodes)){}
+    void generate() override;
 };
 
-struct Node
-{
-    using NodeUnderlying = variant<
-        NodeNull,
-        NodeNum,
-        NodeVar,
-        NodeAddress,
-        NodeDeref,
-        NodePunct,
-        NodeAssign,
-        NodeRet,
-        NodeCompoundStatement,
-        NodeIf,
-        NodeFor,
-        NodeInitializer,
-        NodeDeclaration>;
-    NodeUnderlying val;
-    optional<Type> type;
-};
-
-Type NodeAddress::get_type() {
-    return Type{var->type->kind, var->type->ptr+1};
+OptionalType NodeAddress::get_type() {
+    auto type = var->get_type();
+    return Type{type->kind, type->ptr+1};
 }
 
-Type NodeDeref::get_type(){
-    if (var->type->ptr<=0){
+OptionalType NodeDeref::get_type(){
+    auto type = var->get_type();
+    if (type->ptr<=0){
         verror_at(token, "non pointer type cannot be dereferenced");
     }
-    return Type{var->type->kind, var->type->ptr-1};
+    return Type{type->kind, type->ptr-1};
 }
 
-Type NodePunct::get_type(){
-    auto tl = *lhs->type;
-    auto tr = *rhs->type;
+OptionalType NodePunct::get_type(){
+    auto tl = *lhs->get_type();
+    auto tr = *rhs->get_type();
     if ((tl.ptr > 0 && tr.ptr == 0) || (tl.ptr ==0 && tr.ptr > 0)){
         return tl.ptr > 0 ? tl: tr;
     }
@@ -147,29 +177,22 @@ Type NodePunct::get_type(){
 
 static inline map<string, optional<Type>> var_types;
 
-Type NodeAssign::get_type(){
+OptionalType NodeAssign::get_type(){
     // check type of both side of assignement or complement of the type of left hand side
-    auto& tl = lhs->type;
-    auto& tr = rhs->type;
-    if(!tr){
-        verror_at(token, "type of right hand side of assignment not defined");
-    }
+    auto tl = lhs->get_type();
+    auto tr = rhs->get_type();
+    assert_at(tr.has_value() ,token, "type of right hand side of assignment not defined");
     if (!tl){
-        auto node_var = get_if<NodeVar>(&lhs->val);
-        if(!node_var){
-            verror_at(token, "variable should come at lhs of assignment");
-        }
+        assert_at(dynamic_cast<NodeVar*>(lhs.get()), token, "variable should come at lhs of assignment");
     }
     else {
-        if(*tl!=*tr){
-            verror_at(token, "diffrent types for left and right hand side of assignment");
-        }
+        assert_at(*tl==*tr, token, "diffrent types for left and right hand side of assignment");
     }
     return *tl;
 }
 
-Type NodeRet::get_type(){
-    return *pNode->type;
+OptionalType NodeRet::get_type(){
+    return pNode->get_type();
 }
 
 optional<Type> NodeVar::get_type(){
