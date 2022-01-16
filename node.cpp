@@ -40,3 +40,8 @@ Type NodeRet::get_type(){
 Type NodeVar::get_type(){
     return var_types[name];
 }
+
+Type NodeFunc::get_type(){
+    return Type{TypeKind::Int, 0};
+}
+

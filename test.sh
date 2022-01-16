@@ -1,11 +1,17 @@
 #!/bin/bash -e
+
+cat <<EOF | gcc -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+
 assert() {
     set +e
     expected="$1"
     input="$2"
 
     ./pontacc "$input" > tmp.s || exit
-    gcc -static -o tmp tmp.s
+    gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     actual="$?"
 
@@ -98,5 +104,7 @@ assert 5 '{ int x=3; return (&x+2)-&x+3; }'
 assert 8 '{ int x, y; x=3; y=5; return x+y; }'
 assert 8 '{ int x=3, y=5; return x+y; }'
 
+assert 3 '{ return ret3(); }'
+assert 5 '{ return ret5(); }'
 
 echo OK

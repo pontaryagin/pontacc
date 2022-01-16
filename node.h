@@ -41,6 +41,14 @@ struct NodeVar: ITyped{
     void generate() override;
 };
 
+struct NodeFunc: ITyped{
+    Token token;
+    string name;
+    NodeFunc(const Token& token): token(token), name(token.ident){}
+    Type get_type() override;
+    void generate() override;
+};
+
 struct NodeAddress: ITyped{
     Token token;
     PtrTyped var;

@@ -66,18 +66,24 @@ tuple<bool, PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int 
     return {true, make_unique<NodeDeclaration>(move(pNodes)), pos1};
 }
 
-//  primary = num | ident | "(" expr ")"
-pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int start_pos){
-    auto token_val = tokens.at(start_pos).punct;
-    if (is_punct(tokens, start_pos, "(")){
-        auto [pNode, pos] = parse_expr(tokens, start_pos+1);
+//  primary = num | ident args? | "(" expr ")"
+// args = "(" ")"
+pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos){
+    auto token_val = tokens.at(pos).punct;
+    if (is_punct(tokens, pos, "(")){
+        PtrTyped pNode;
+        tie(pNode, pos) = parse_expr(tokens, pos+1);
         expect_punct(tokens, pos, ")");
         return {move(pNode), pos+1};
     }
-    else if (tokens.at(start_pos).kind == TokenKind::Ident){
-        return {make_unique<NodeVar>(tokens.at(start_pos)), start_pos+1};
+    else if (is_kind(tokens, pos, TokenKind::Ident)){
+        if (is_punct(tokens, pos+1, "(")){
+            expect_punct(tokens, pos+2, ")");
+            return {make_unique<NodeFunc>(tokens.at(pos)), pos+3};
+        }
+        return {make_unique<NodeVar>(tokens.at(pos)), pos+1};
     }
-    return {make_unique<NodeNum>(tokens.at(start_pos)), start_pos+1};
+    return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
 }
 
 // unary = ("+" | "-" | "*" | "&") unary | primary

@@ -101,6 +101,10 @@ void NodeVar::generate(){
     ass_mov(*ass_stack_reg(this), "%rax");
 }
 
+void NodeFunc::generate(){
+    cout << "  call " << name << endl;
+}
+
 void NodeAddress::generate(){
     auto reg = ass_stack_reg(var.get());
     assert_at(reg.has_value(), token, " cannot take address of lvalue");
