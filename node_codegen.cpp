@@ -1,5 +1,7 @@
 #include "node.h"
 
+inline const vector<string> call_reg_names = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+
 void gen_header(){
     cout << "  .global main\n";
 }
@@ -102,6 +104,14 @@ void NodeVar::generate(){
 }
 
 void NodeFunc::generate(){
+    assert_at(m_nodes.size() < 7, token, "argument size should be less than 7");
+    for(auto& node: m_nodes){
+        node->generate();
+        ass_push("%rax");
+    }
+    for (int i = ssize(m_nodes)-1; i >= 0 ; --i) {
+        ass_pop(call_reg_names[i]);
+    }
     cout << "  call " << name << endl;
 }
 

@@ -66,8 +66,26 @@ tuple<bool, PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int 
     return {true, make_unique<NodeDeclaration>(move(pNodes)), pos1};
 }
 
+// func = ident "(" assign? ("," assign)* ")"
+pair<PtrTyped, int> parse_func(const vector<Token>& tokens, int pos){
+    auto& token_ident = tokens.at(pos);
+    vector<PtrTyped> args;
+    pos += 2;
+    PtrTyped expr;
+    if (is_punct(tokens, pos, ")")){
+        return {make_unique<NodeFunc>(token_ident, move(args)), pos+1};
+    }
+    tie(expr, pos) = parse_assign(tokens, pos);
+    args.push_back(move(expr));
+    while(is_punct(tokens, pos, ",")){
+        tie(expr, pos) = parse_assign(tokens, pos+1);
+        args.push_back(move(expr));
+    }
+    expect_punct(tokens, pos, ")");
+    return {make_unique<NodeFunc>(token_ident, move(args)), pos+1};
+}
+
 //  primary = num | ident args? | "(" expr ")"
-// args = "(" ")"
 pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos){
     auto token_val = tokens.at(pos).punct;
     if (is_punct(tokens, pos, "(")){
@@ -78,8 +96,7 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos){
     }
     else if (is_kind(tokens, pos, TokenKind::Ident)){
         if (is_punct(tokens, pos+1, "(")){
-            expect_punct(tokens, pos+2, ")");
-            return {make_unique<NodeFunc>(tokens.at(pos)), pos+3};
+            return parse_func(tokens, pos);
         }
         return {make_unique<NodeVar>(tokens.at(pos)), pos+1};
     }

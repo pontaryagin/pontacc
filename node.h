@@ -8,11 +8,13 @@ static inline map<string, Type> var_types;
 
 struct INode{
     virtual void generate() = 0;
+    virtual ~INode() {}
 };
 using PtrNode = unique_ptr<INode>;
 
 struct ITyped: virtual INode {
     virtual Type get_type() = 0;
+    virtual ~ITyped() {}
 };
 
 using PtrTyped = unique_ptr<ITyped>;
@@ -44,7 +46,10 @@ struct NodeVar: ITyped{
 struct NodeFunc: ITyped{
     Token token;
     string name;
-    NodeFunc(const Token& token): token(token), name(token.ident){}
+    vector<PtrTyped> m_nodes;
+    
+    NodeFunc(const Token& token, vector<PtrTyped> m_nodes)
+        : token(token), name(token.ident), m_nodes(move(m_nodes)){}
     Type get_type() override;
     void generate() override;
 };
