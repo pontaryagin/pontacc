@@ -8,6 +8,7 @@ static inline map<string, Type> var_types;
 
 struct INode{
     virtual void generate() = 0;
+    virtual optional<int> get_offset() const { return nullopt; }
     virtual ~INode() {}
 };
 using PtrNode = unique_ptr<INode>;
@@ -39,6 +40,7 @@ struct NodeVar: ITyped{
     string name;
     int offset;
     NodeVar(const Token& token): name(token.ident), offset(token.val){}
+    optional<int> get_offset() const override { return offset; }
     Type get_type() override;
     void generate() override;
 };
@@ -69,6 +71,7 @@ struct NodeDeref: ITyped{
 
     NodeDeref(Token token, PtrTyped var)
         : token(token), var(move(var)){}
+    optional<int> get_offset() const override { return var->get_offset(); }
     Type get_type() override;
     void generate() override;
 };

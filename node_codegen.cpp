@@ -47,14 +47,9 @@ static string ass_stack_reg(int offset){
     return to_string(-8*(offset)) + "(%rbp)";
 }
 
-static optional<string> ass_stack_reg(const INode* node){
-    if (auto p = dynamic_cast<const NodeVar*>(node)){
-        return ass_stack_reg(p->offset);
-    }
-    else if (auto p = dynamic_cast<const NodeDeref*>(node)){
-        return ass_stack_reg(p->var.get());
-    }
-    return nullopt;
+static optional<string> ass_stack_reg(const INode& node){
+    auto offset = node.get_offset();
+    return offset ? make_optional(ass_stack_reg(*offset)) : nullopt;
 }
 
 void NodeIf::generate(){
@@ -100,7 +95,7 @@ void NodeCompoundStatement::generate(){
 }
 
 void NodeVar::generate(){
-    ass_mov(*ass_stack_reg(this), "%rax");
+    ass_mov(*ass_stack_reg(*this), "%rax");
 }
 
 void NodeFunc::generate(){
@@ -116,8 +111,7 @@ void NodeFunc::generate(){
 }
 
 void NodeAddress::generate(){
-    auto reg = ass_stack_reg(var.get());
-    assert_at(reg.has_value(), token, " cannot take address of lvalue");
+    auto reg = ass_stack_reg(*var.get());
     cout << "  lea " << *reg << ", %rax" << endl;
 }
 
@@ -209,7 +203,7 @@ void NodePunct::generate(){
 void NodeAssign::generate(){
     rhs->generate();
     if (auto ident = dynamic_cast<NodeVar*>(lhs.get())){
-        cout << "  mov %rax, " << *ass_stack_reg(ident) << endl;
+        cout << "  mov %rax, " << *ass_stack_reg(*ident) << endl;
     }
     else if (auto ident = dynamic_cast<NodeDeref*>(lhs.get())) {
         ass_push("%rax");
@@ -230,7 +224,7 @@ void NodeRet::generate(){
 void NodeInitializer::generate(){
     if (expr){
         expr->generate();
-        ass_mov("%rax", *ass_stack_reg(dynamic_cast<NodeVar*>(var.get())));
+        ass_mov("%rax", *ass_stack_reg(dynamic_cast<NodeVar&>(*var.get())));
     }
 }
 
