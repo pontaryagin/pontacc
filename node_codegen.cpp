@@ -37,8 +37,8 @@ static void ass_prologue(int indent_count){
     cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
 }
 
-static void ass_epilogue(){
-    cout << ".L.return:" << endl;
+static void ass_epilogue(const string& name){
+    cout << ".L.return." << name << ":" << endl;
     cout << "  mov %rbp, %rsp" << endl;
     cout << "  pop %rbp" << endl;
 }
@@ -219,7 +219,7 @@ void NodeAssign::generate(){
 
 void NodeRet::generate(){
     pNode->generate();
-    cout << "  jmp .L.return" << endl;
+    cout << "  jmp .L.return." << m_func_name << endl;
 }
 
 void NodeInitializer::generate(){
@@ -235,12 +235,24 @@ void NodeDeclaration::generate(){
     }
 }
 
+void NodeFuncDef::generate(){
+    gen_header();
+    cout << m_name << ":\n";
+    ass_prologue(Token::indents.size()+1); // TODO: use local vars
+    m_statement->generate();
+    ass_epilogue(m_name);
+    cout << "  ret\n";
+    
+}
+
+void NodeProgram::generate(){
+    for (auto& pNode: pNodes){
+        pNode->generate();
+    }
+}
+
 void generate_main(const PtrNode& node){
     gen_header();
-    cout << "main:\n";
-    ass_prologue(Token::indents.size()+1);
     node->generate();
-    ass_epilogue();
-    cout << "  ret\n";
 }
 

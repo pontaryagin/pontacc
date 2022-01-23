@@ -28,7 +28,7 @@ tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) 
 }
 
 // declarator = "*"* ident
-pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type type) {
+pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
         ++type.ptr;
@@ -159,10 +159,10 @@ pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos){
     return parse_assign(tokens, start_pos);
 }
 
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Context& context);
 
 // compound-statement = (declaration | statement)* "}"
-pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos, const Context& context){
     vector<PtrNode> pNodes;
     auto token_start = tokens.at(pos);
     while (!is_punct(tokens, pos, "}")){
@@ -170,7 +170,7 @@ pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos)
         PtrNode pNode;
         tie(ok, pNode, pos) = try_parse_declaration(tokens, pos);
         if(!ok){
-            tie(pNode, pos) = parse_statement(tokens, pos);
+            tie(pNode, pos) = parse_statement(tokens, pos, context);
         }
         pNodes.emplace_back(move(pNode));
     }
@@ -178,11 +178,11 @@ pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos)
 }
 
 // expr_statement_return = "return" expr ";"
-pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos, const Context& context){
     assert(is_keyword(tokens, pos, "return"));
     auto [pNode, pos2] = parse_expr(tokens, pos+1);
     expect_punct(tokens, pos2, ";");
-    return {make_unique<NodeRet>(tokens.at(pos), move(pNode)), pos2+1};
+    return {make_unique<NodeRet>(tokens.at(pos), move(pNode), context.func_name), pos2+1};
 }
 
 // expr_statement = expr? ";"
@@ -196,7 +196,7 @@ pair<PtrNode,int> parse_expr_statement(const vector<Token>& tokens, int pos){
 }
 
 // statement_for = "for" "(" expr_statement expr_statement expr? ")" statement
-pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos, const Context& context){
     assert(is_keyword(tokens, pos, "for"));
     expect_punct(tokens, pos+1, "(");
     auto [expr1, pos1] = parse_expr_statement(tokens, pos+2);
@@ -207,58 +207,76 @@ pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos){
         tie(expr3, pos3) = parse_expr(tokens, pos2);
         expect_punct(tokens, pos3, ")");
     }
-    auto [statement, pos_end] = parse_statement(tokens, pos3+1);
+    auto [statement, pos_end] = parse_statement(tokens, pos3+1, context);
     return {make_unique<NodeFor>(tokens.at(pos), move(expr1), move(expr2), move(expr3), move(statement)), pos_end};
 }
 
 // statement_while = "while" "(" expr ")" statement
-pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos, const Context& context){
     assert(is_keyword(tokens, pos, "while"));
     expect_punct(tokens, pos+1, "(");
     auto [expr, pos_expr] = parse_expr(tokens, pos+2);
     expect_punct(tokens, pos_expr, ")");
-    auto [statement, pos_statement] = parse_statement(tokens, pos_expr+1);
+    auto [statement, pos_statement] = parse_statement(tokens, pos_expr+1, context);
     return {make_unique<NodeFor>(tokens.at(pos), get_null_statement(tokens.at(pos)), move(expr), get_null_statement(tokens.at(pos)), move(statement)), pos_statement};
 }
 
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
-pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos, const Context& context){
     assert(is_keyword(tokens, pos, "if"));
     expect_punct(tokens, pos+1, "(");
     auto [expr, pos2] = parse_expr(tokens, pos+2);
     expect_punct(tokens, pos2, ")");
-    auto [statement_if, pos3] = parse_statement(tokens, pos2+1);
+    auto [statement_if, pos3] = parse_statement(tokens, pos2+1, context);
     if (is_keyword(tokens, pos3, "else")){
-        auto [statement_else, pos4] = parse_statement(tokens, pos3+1);
+        auto [statement_else, pos4] = parse_statement(tokens, pos3+1, context);
         return {make_unique<NodeIf>(tokens.at(pos), move(expr), move(statement_if), move(statement_else)), pos4};
     }
     return {make_unique<NodeIf>(tokens.at(pos), move(expr), move(statement_if), nullptr), pos3};
 }
 
 // statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos){
+pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Context& context){
     if (is_keyword(tokens, pos, "if")){
-        return parse_statement_if(tokens, pos);
+        return parse_statement_if(tokens, pos, context);
     }
     if (is_keyword(tokens, pos, "for")){
-        return parse_statement_for(tokens, pos);
+        return parse_statement_for(tokens, pos, context);
     }
     if (is_keyword(tokens, pos, "while")){
-        return parse_statement_while(tokens, pos);
+        return parse_statement_while(tokens, pos, context);
     }
     if (is_punct(tokens, pos, "{")){
-        return parse_compound_statement(tokens, pos+1);
+        return parse_compound_statement(tokens, pos+1, context);
     }
     if (is_keyword(tokens, pos, "return")){
-        return parse_statement_return(tokens, pos);
+        return parse_statement_return(tokens, pos, context);
     }
     return parse_expr_statement(tokens, pos);
 }
 
-// program    = "{" compound-statement
-pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
-    expect_punct(tokens, pos++, "{");
-    return parse_compound_statement(tokens, pos);
+// func_def = declspec declarator "(" ")" "{" compound-statement
+pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos){
+    auto [_, type, pos_decls] = try_parse_declspec(tokens, pos);
+    auto [declr, pos_declr] = parse_declarator(tokens, pos_decls, type);
+    expect_punct(tokens, pos_declr, "(");
+    expect_punct(tokens, pos_declr+1, ")");
+    expect_punct(tokens, pos_declr+2, "{");
+    Context context{declr->name};
+    auto [state, pos_state] = parse_compound_statement(tokens, pos_declr+3, context);
+    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), declr->get_type()), pos_state};
 }
+
+// program = func_def*
+pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
+    vector<PtrNode> nodes;
+    PtrNode node;
+    while(pos < tokens.size()){
+        tie(node, pos)  = parse_func_def(tokens, pos);
+        nodes.push_back(move(node));
+    }
+    return {make_unique<NodeProgram>(move(nodes)), pos};
+}
+
 
 

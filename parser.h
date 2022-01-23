@@ -2,6 +2,10 @@
 #include "common.h"
 #include "node.h"
 
+struct Context {
+    string func_name;
+};
+
 inline auto get_null_statement(Token token){
     return make_unique<NodeNull>(token);
 }
@@ -52,8 +56,13 @@ pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos);
 // declspec = "int"
 tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos);
 
-// declarator = "*"* ident
-pair<PtrNode, int> parse_declarator(const vector<Token>& tokens, int pos, Type type);
+// func_params = (declspec declarator)? ( "," (declspec declarator) ) * ")"
+
+// type_suffix = ("(" func_params)?
+tuple<bool, Type, int> try_parse_type_suffix(const vector<Token>& tokens, int pos, Type type);
+
+// declarator = "*"* ident type_suffix
+pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type);
 
 // initializer = declarator ("=" expr)?
 pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type);
@@ -85,28 +94,31 @@ pair<PtrTyped,int> parse_assign(const vector<Token>& tokens, int start_pos);
 // expr = assign
 pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos);
 
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Context& context);
 
 // compound-statement = (declaration | statement)* "}"
 pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos);
 
 // expr_statement_return = "return" expr ";"
-pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos, const Context& context);
 
 // expr_statement = expr? ";"
 pair<PtrNode,int> parse_expr_statement(const vector<Token>& tokens, int pos);
 
 // statement_for = "for" "(" expr_statement expr_statement expr? ")" statement
-pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos, const Context& context);
 
 // statement_while = "while" "(" expr ")" statement
-pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos, const Context& context);
 
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
-pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos, const Context& context);
 
 // statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos);
+pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Context& context);
 
-// program    = "{" compound-statement
+// func_def = declspec declarator "{" compound-statement
+pair<PtrNode, int> parse_func_def(const vector<Token>& tokens, int pos);
+
+// program = func_def*
 pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos);

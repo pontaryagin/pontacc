@@ -110,8 +110,13 @@ inline Tokens tokenize(string_view text){
 }
 
 
-inline void verror_at(const Token& token, string_view fmt, bool next=false){
-    verror_at(token.statement, token.loc, fmt, next);
+inline void verror_at(optional<Token> token, string_view fmt, bool next=false){
+    if(token){
+        verror_at(token->statement, token->loc, fmt, next);
+    }
+    else{
+        verror_at("", 0, fmt, false);
+    }
 }
 
 inline void assert_at(bool check, const Token& token, string_view fmt, bool next=false){
