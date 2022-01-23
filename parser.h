@@ -2,8 +2,8 @@
 #include "common.h"
 #include "node.h"
 
-inline auto get_null_statement(){
-    return make_unique<NodeNull>();
+inline auto get_null_statement(Token token){
+    return make_unique<NodeNull>(token);
 }
 
 inline bool is_kind(const vector<Token>& tokens, int pos, TokenKind kind){

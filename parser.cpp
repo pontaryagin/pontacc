@@ -44,9 +44,9 @@ pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type t
     auto [pNode, pos_decl] = parse_declarator(tokens, pos, type);
     if (is_punct(tokens, pos_decl, "=")){
         auto [expr, pos_expr] = parse_expr(tokens, pos_decl+1);
-        return {make_unique<NodeInitializer>(move(pNode), move(expr), type), pos_expr};
+        return {make_unique<NodeInitializer>(tokens.at(pos_decl), move(pNode), move(expr), type), pos_expr};
     }
-    return {make_unique<NodeInitializer>(move(pNode), nullptr, type), pos_decl};
+    return {make_unique<NodeInitializer>(tokens.at(pos), move(pNode), nullptr, type), pos_decl};
 }
 
 
@@ -63,7 +63,7 @@ tuple<bool, PtrNode,int> try_parse_declaration(const vector<Token>& tokens, int 
         pNodes.emplace_back(move(pNode));
     } while(is_punct(tokens, pos1++, ","));
     expect_punct(tokens, pos1-1, ";");
-    return {true, make_unique<NodeDeclaration>(move(pNodes)), pos1};
+    return {true, make_unique<NodeDeclaration>(tokens.at(pos), move(pNodes)), pos1};
 }
 
 // func = ident "(" assign? ("," assign)* ")"
@@ -164,6 +164,7 @@ pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos);
 // compound-statement = (declaration | statement)* "}"
 pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos){
     vector<PtrNode> pNodes;
+    auto token_start = tokens.at(pos);
     while (!is_punct(tokens, pos, "}")){
         bool ok;
         PtrNode pNode;
@@ -173,7 +174,7 @@ pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos)
         }
         pNodes.emplace_back(move(pNode));
     }
-    return {make_unique<NodeCompoundStatement>(move(pNodes)), pos+1};
+    return {make_unique<NodeCompoundStatement>(token_start, move(pNodes)), pos+1};
 }
 
 // expr_statement_return = "return" expr ";"
@@ -187,7 +188,7 @@ pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos){
 // expr_statement = expr? ";"
 pair<PtrNode,int> parse_expr_statement(const vector<Token>& tokens, int pos){
     if (is_punct(tokens, pos, ";")){
-        return {get_null_statement(), pos+1};
+        return {get_null_statement(tokens.at(pos)), pos+1};
     }
     auto [pNode, pos2] = parse_expr(tokens, pos);
     expect_punct(tokens, pos2, ";");
@@ -200,14 +201,14 @@ pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos){
     expect_punct(tokens, pos+1, "(");
     auto [expr1, pos1] = parse_expr_statement(tokens, pos+2);
     auto [expr2, pos2] = parse_expr_statement(tokens, pos1);
-    PtrNode expr3 = get_null_statement();
+    PtrNode expr3 = get_null_statement(tokens.at(pos2));
     int pos3 = pos2; 
     if (!is_punct(tokens, pos2, ")")) {
         tie(expr3, pos3) = parse_expr(tokens, pos2);
         expect_punct(tokens, pos3, ")");
     }
     auto [statement, pos_end] = parse_statement(tokens, pos3+1);
-    return {make_unique<NodeFor>(move(expr1), move(expr2), move(expr3), move(statement)), pos_end};
+    return {make_unique<NodeFor>(tokens.at(pos), move(expr1), move(expr2), move(expr3), move(statement)), pos_end};
 }
 
 // statement_while = "while" "(" expr ")" statement
@@ -217,7 +218,7 @@ pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos){
     auto [expr, pos_expr] = parse_expr(tokens, pos+2);
     expect_punct(tokens, pos_expr, ")");
     auto [statement, pos_statement] = parse_statement(tokens, pos_expr+1);
-    return {make_unique<NodeFor>(get_null_statement(), move(expr), get_null_statement(), move(statement)), pos_statement};
+    return {make_unique<NodeFor>(tokens.at(pos), get_null_statement(tokens.at(pos)), move(expr), get_null_statement(tokens.at(pos)), move(statement)), pos_statement};
 }
 
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
@@ -229,9 +230,9 @@ pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos){
     auto [statement_if, pos3] = parse_statement(tokens, pos2+1);
     if (is_keyword(tokens, pos3, "else")){
         auto [statement_else, pos4] = parse_statement(tokens, pos3+1);
-        return {make_unique<NodeIf>(move(expr), move(statement_if), move(statement_else)), pos4};
+        return {make_unique<NodeIf>(tokens.at(pos), move(expr), move(statement_if), move(statement_else)), pos4};
     }
-    return {make_unique<NodeIf>(move(expr), move(statement_if), nullptr), pos3};
+    return {make_unique<NodeIf>(tokens.at(pos), move(expr), move(statement_if), nullptr), pos3};
 }
 
 // statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |

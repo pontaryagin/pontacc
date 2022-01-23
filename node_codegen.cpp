@@ -98,6 +98,10 @@ void NodeVar::generate(){
     ass_mov(*ass_stack_reg(*this), "%rax");
 }
 
+void NodeVar::generate_address() const{
+    cout << "  lea " << *ass_stack_reg(*this) << ", %rax" << endl;
+}
+
 void NodeFunc::generate(){
     assert_at(m_nodes.size() < 7, token, "argument size should be less than 7");
     for(auto& node: m_nodes){
@@ -111,14 +115,18 @@ void NodeFunc::generate(){
 }
 
 void NodeAddress::generate(){
-    auto reg = ass_stack_reg(*var.get());
-    cout << "  lea " << *reg << ", %rax" << endl;
+    var->generate_address();
 }
 
 void NodeDeref::generate(){
-    var->generate();
+    generate_address();
     ass_mov("(%rax)", "%rax");
 }
+
+void NodeDeref::generate_address() const{
+    var->generate();
+}
+
 
 void NodePunct::ass_adjust_address_mul(){
     auto r_ptr = rhs->get_type().ptr;
@@ -202,18 +210,11 @@ void NodePunct::generate(){
 
 void NodeAssign::generate(){
     rhs->generate();
-    if (auto ident = dynamic_cast<NodeVar*>(lhs.get())){
-        cout << "  mov %rax, " << *ass_stack_reg(*ident) << endl;
-    }
-    else if (auto ident = dynamic_cast<NodeDeref*>(lhs.get())) {
-        ass_push("%rax");
-        ident->var->generate();
-        ass_pop("%rdi");
-        ass_mov("%rdi", "(%rax)");
-    }
-    else {
-        verror_at(token, "Left hand side of assignment should be identifier");
-    }
+    ass_push("%rax");
+    lhs->generate_address();
+    ass_pop("%rdi");
+    ass_mov("%rdi", "(%rax)");
+    ass_mov("%rdi", "%rax");
 }
 
 void NodeRet::generate(){
@@ -224,7 +225,7 @@ void NodeRet::generate(){
 void NodeInitializer::generate(){
     if (expr){
         expr->generate();
-        ass_mov("%rax", *ass_stack_reg(dynamic_cast<NodeVar&>(*var.get())));
+        ass_mov("%rax", *ass_stack_reg(*var.get()));
     }
 }
 
