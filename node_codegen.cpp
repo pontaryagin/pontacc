@@ -238,7 +238,7 @@ void NodeDeclaration::generate(){
 void NodeFuncDef::generate(){
     gen_header();
     cout << m_name << ":\n";
-    ass_prologue(Token::indents.size()+1); // TODO: use local vars
+    ass_prologue(Token::idents.size()+1); // TODO: use local vars
     m_statement->generate();
     ass_epilogue(m_name);
     cout << "  ret\n";
