@@ -1,4 +1,4 @@
-CFLAGS=-std=c++2a -g
+CFLAGS=-std=c++2a -g -O0
 
 INCLUDES := $(wildcard *.h)
 CPP_FILES := $(wildcard *.cpp)
