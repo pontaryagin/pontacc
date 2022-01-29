@@ -1,27 +1,39 @@
 #include "node.h"
 
 Type NodeAddress::get_type() {
-    auto type = var->get_type();
-    return Type{type.kind, type.ptr+1};
+    return Type::to_ptr(var->get_type());
 }
 
 Type NodeDeref::get_type(){
     auto type = var->get_type();
-    assert_at(type.ptr>0, token, "non pointer type cannot be dereferenced");
-    return Type{type.kind, type.ptr-1};
+    assert_at(get_if<TypePtr>(&type), token, "non pointer type cannot be dereferenced");
+    return Type::deref(move(type));
 }
 
 Type NodePunct::get_type(){
-    auto tl = lhs->get_type();
-    auto tr = rhs->get_type();
-    if ((tl.ptr > 0 && tr.ptr == 0) || (tl.ptr ==0 && tr.ptr > 0)){
-        return tl.ptr > 0 ? tl: tr;
+    auto&& l = lhs->get_type();
+    auto&& r = rhs->get_type();
+    auto l_is_ptr = get_if<TypePtr>(&l);
+    auto r_is_ptr = get_if<TypePtr>(&r);
+    auto l_is_int = get_if<TypeInt>(&l);
+    auto r_is_int = get_if<TypeInt>(&r);
+
+    if(l_is_ptr && r_is_ptr){
+        assert_at(l == r, token, "diffrent types passed to operator");
+        return TypeInt{};
     }
-    else if (tl.ptr > 0 && tr.ptr > 0){
-        assert_at(tl == tr, token, "diffrent types passed to operator");
-        return Type{TypeKind::Int, 0};
+    else if (l_is_ptr && r_is_int){
+        return l;
     }
-    return tl;
+    else if (l_is_int && r_is_ptr){
+        return r;
+    }
+    else if (l_is_int && r_is_int){
+        return l;
+
+    }
+    assert_at(false, token, "unsupported operator");
+    abort();
 }
 
 
@@ -42,6 +54,6 @@ Type NodeVar::get_type(){
 }
 
 Type NodeFunc::get_type(){
-    return Type{TypeKind::Int, 0};
+    return TypeInt{};
 }
 

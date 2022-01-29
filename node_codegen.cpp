@@ -129,20 +129,18 @@ void NodeDeref::generate_address() const{
 
 
 void NodePunct::ass_adjust_address_mul(){
-    auto r_ptr = rhs->get_type().ptr;
-    auto l_ptr = lhs->get_type().ptr;
-    if (r_ptr>0 && l_ptr == 0){
+    auto r = rhs->get_type();
+    auto l = lhs->get_type();
+    if (get_if<TypePtr>(&r) && get_if<TypeInt>(&l)){
         cout << "  imul $8, %rax" << endl;
     }
-    else if (r_ptr==0 && l_ptr>0){
+    else if (get_if<TypeInt>(&r) && get_if<TypePtr>(&l)){
         cout << "  imul $8, %rdi" << endl;
     }
 }
 
 void NodePunct::ass_adjust_address_div(){
-    auto r_ptr = rhs->get_type().ptr;
-    auto l_ptr = lhs->get_type().ptr;
-    if (r_ptr > 0 && l_ptr > 0){
+    if (rhs->get_type().is_ptr() && lhs->get_type().is_ptr()){
         ass_mov("$8", "%rdi");
         cout << "  cqo" << endl;
         cout << "  idiv %rdi" << endl;

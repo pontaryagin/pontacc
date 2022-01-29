@@ -43,7 +43,7 @@ struct NodeNum: ITyped{
     NodeNum(int num): num(num){}
     NodeNum(const Token& token): token(token), num(token.val){}
 
-    Type get_type() override {return Type{TypeKind::Int, 0}; }
+    Type get_type() override {return TypeInt{}; }
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };

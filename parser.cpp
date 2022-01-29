@@ -22,7 +22,7 @@ pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos);
 // declspec = "int"
 tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) {
     if(is_keyword(tokens, pos, "int")){
-        return {true, Type{TypeKind::Int, 0}, pos+1};
+        return {true, TypeInt{}, pos+1};
     }
     return {false, Type{}, pos};
 }
@@ -31,10 +31,10 @@ tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) 
 pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
-        ++type.ptr;
+        type = Type::to_ptr(move(type));
     }
     expect_kind(tokens, pos, TokenKind::Ident);
-    var_types[tokens.at(pos).ident] = type;
+    var_types[tokens.at(pos).ident] = move(type);
     auto pNode = make_unique<NodeVar>(tokens.at(pos));
     return {move(pNode), pos+1};
 }

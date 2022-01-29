@@ -41,3 +41,4 @@ inline ToType variant_cast(FromType&& v)
                     std::forward<FromType>(v));
 }
 
+template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
