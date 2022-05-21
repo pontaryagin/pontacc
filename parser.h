@@ -57,9 +57,10 @@ pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos);
 tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos);
 
 // func_params = (declspec declarator)? ( "," (declspec declarator) ) * ")"
+tuple<vector<PtrType>, vector<unique_ptr<NodeVar>>, int> parse_func_params(const vector<Token>& tokens, int pos);
 
-// type_suffix = ("(" func_params)?
-tuple<bool, Type, int> try_parse_type_suffix(const vector<Token>& tokens, int pos, Type type);
+// type_suffix = "(" func_params | "[" num "]" | ε
+tuple<Type, int> parse_type_suffix(const vector<Token>& tokens, int pos, Type type);
 
 // declarator = "*"* ident type_suffix
 pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type);
@@ -117,7 +118,7 @@ pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos, const
 // statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |
 pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Context& context);
 
-// func_def = declspec declarator "{" compound-statement
+// func_def = declspec declarator func_params "{" compound-statement
 pair<PtrNode, int> parse_func_def(const vector<Token>& tokens, int pos);
 
 // program = func_def*

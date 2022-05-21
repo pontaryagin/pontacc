@@ -236,7 +236,12 @@ void NodeDeclaration::generate(){
 void NodeFuncDef::generate(){
     gen_header();
     cout << m_name << ":\n";
-    ass_prologue(Token::idents.size()+1); // TODO: use local vars
+    ass_prologue(vars.size()+1);
+    for (int i = ssize(type.param_names)-1; i>=0;i++)
+    {
+        vars[i]
+    }
+    
     m_statement->generate();
     ass_epilogue(m_name);
     cout << "  ret\n";

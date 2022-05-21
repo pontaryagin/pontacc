@@ -203,10 +203,11 @@ struct NodeFuncDef: INode{
     Token token;
     string m_name;
     PtrNode m_statement;
-    Type type;
+    TypeFunc type;
+    std::map<std::string, int> vars;
     
-    NodeFuncDef(const Token& token, string name, PtrNode statement, Type type)
-        : token(token), m_name(move(name)), m_statement(move(statement)), type(type){}
+    NodeFuncDef(const Token& token, string name, PtrNode statement, TypeFunc type)
+        : token(token), m_name(move(name)), m_statement(move(statement)), type(move(type)){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };

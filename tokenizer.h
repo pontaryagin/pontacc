@@ -25,7 +25,7 @@ struct Token {
     string punct;
     string ident;
     TokenKind kind;
-    static inline map<string, int> idents;
+    // static inline map<string, int> idents;
     // info 
     string_view statement;
     int loc; // Token location
@@ -55,7 +55,7 @@ struct Token {
         return ('0'<= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
     }
 
-    int from_ident(string_view statement){
+    int from_ident(string_view statement, map<string, int>& idents){
         int pos = 0;
         while(pos < statement.size() && is_identifier_char(statement[pos])){
             pos += 1;

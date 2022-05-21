@@ -27,19 +27,45 @@ tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) 
     return {false, Type{}, pos};
 }
 
-// declarator = "*"* ident
+tuple<vector<PtrType>, vector<unique_ptr<NodeVar>>, int> parse_func_params(const vector<Token>& tokens, int pos){
+    vector<PtrType> ret;
+    vector<unique_ptr<NodeVar>> params;
+    do {
+        Type type;
+        unique_ptr<NodeVar> param;
+        tie(ignore, type, pos) = try_parse_declspec(tokens, pos);
+        tie(param, pos) = parse_declarator(tokens, pos, type);
+        ret.emplace_back(move(make_unique<Type>(type)));
+        params.emplace_back(move(param));
+    }while(is_punct(tokens, pos, ","));
+    expect_punct(tokens, pos, ")");
+    return {move(ret), move(params), pos+1};
+}
+
+tuple<Type, int> parse_type_suffix(const vector<Token>& tokens, int pos, Type type){
+    if (is_punct(tokens, pos, "(")){
+        auto [types, params, pos1] = parse_func_params(tokens, pos+1);
+        Type t = TypeFunc{make_unique<Type>(type), move(types), move(params)};
+        return {t, pos1};
+    }
+    else if (is_punct(tokens, pos, "[")){
+
+    }
+    return {move(type), pos};
+}
+
 pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
         type = Type::to_ptr(move(type));
     }
     expect_kind(tokens, pos, TokenKind::Ident);
+    tie(type, pos) = parse_type_suffix(tokens, pos, type);
     var_types[tokens.at(pos).ident] = move(type);
     auto pNode = make_unique<NodeVar>(tokens.at(pos));
     return {move(pNode), pos+1};
 }
 
-// initializer = declarator ("=" expr)?
 pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type) {
     auto [pNode, pos_decl] = parse_declarator(tokens, pos, type);
     if (is_punct(tokens, pos_decl, "=")){
@@ -255,16 +281,13 @@ pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, const Co
     return parse_expr_statement(tokens, pos);
 }
 
-// func_def = declspec declarator "(" ")" "{" compound-statement
 pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos){
     auto [_, type, pos_decls] = try_parse_declspec(tokens, pos);
     auto [declr, pos_declr] = parse_declarator(tokens, pos_decls, type);
-    expect_punct(tokens, pos_declr, "(");
-    expect_punct(tokens, pos_declr+1, ")");
-    expect_punct(tokens, pos_declr+2, "{");
+    expect_punct(tokens, pos_declr, "{");
     Context context{declr->name};
     auto [state, pos_state] = parse_compound_statement(tokens, pos_declr+3, context);
-    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), declr->get_type()), pos_state};
+    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), get<TypeFunc>(declr->get_type()), pos_state};
 }
 
 // program = func_def*

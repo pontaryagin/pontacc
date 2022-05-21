@@ -1,10 +1,14 @@
 #include "common.h"
 
+struct NodeVar;
+
 struct Type;
 
 using PtrType = shared_ptr<Type>;
 
 struct TypeInt{
+    int size_ = 8; // byte
+    int size(){ return size_; }
     auto operator<=>(const TypeInt&) const = default;
 };
 
@@ -16,7 +20,10 @@ struct TypePtr{
 
 struct TypeFunc{
     PtrType ret;
-    vector<PtrType> params;
+    vector<PtrType> param_types;
+    vector<unique_ptr<NodeVar>> param_names;
+
+    int size(){ return 8; }
     strong_ordering operator<=>(const TypeFunc&) const;
     bool operator==(const TypeFunc& rhs) const { return (*this <=> rhs) == 0; }
 };
@@ -49,11 +56,11 @@ inline strong_ordering TypeFunc::operator<=>(const TypeFunc& rhs) const{
         return cmp;
     }
     else {
-        if (auto cmp = params.size() <=> params.size(); cmp != 0) {
+        if (auto cmp = param_types.size() <=> param_types.size(); cmp != 0) {
             return cmp;
         }
-        for (size_t i = 0; i < params.size(); i++) {
-            if (auto cmp = params[i] <=> rhs.params[i]; cmp != 0) {
+        for (size_t i = 0; i < param_types.size(); i++) {
+            if (auto cmp = param_types[i] <=> rhs.param_types[i]; cmp != 0) {
                 return cmp;
             }
         }
