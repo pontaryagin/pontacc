@@ -4,8 +4,6 @@
 #include "type.h"
 #include "tokenizer.h"
 
-static inline map<string, Type> var_types;
-
 struct INode{
     virtual optional<Token> get_token() const {return nullopt; };
     virtual void generate() = 0;
@@ -52,7 +50,8 @@ struct NodeVar: ITyped{
     Token token;
     string name;
     int offset;
-    NodeVar(const Token& token): token(token), name(token.ident), offset(token.val){}
+    Type m_type;
+    NodeVar(const Token& token, Type type): token(token), name(token.ident), offset(token.val), m_type(type){}
     optional<int> get_offset() const override { return offset; }
     Type get_type() override;
     optional<Token> get_token() const override { return token; }

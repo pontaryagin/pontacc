@@ -50,7 +50,7 @@ Type NodeRet::get_type(){
 }
 
 Type NodeVar::get_type(){
-    return var_types[name];
+    return m_type;
 }
 
 Type NodeFunc::get_type(){
