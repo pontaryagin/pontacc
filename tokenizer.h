@@ -25,7 +25,6 @@ struct Token {
     string punct;
     string ident;
     TokenKind kind;
-    static inline map<string, int> idents;
     // info 
     string_view statement;
     int loc; // Token location
@@ -65,10 +64,6 @@ struct Token {
         }
         ident = statement.substr(0, pos);
         kind = keywords.contains(ident) ? TokenKind::Keyword : TokenKind::Ident;
-        if (!idents.contains(ident)){
-            idents[ident] = idents.size()+1;
-        }
-        val = idents.at(ident);
         return len = pos;
     }
 

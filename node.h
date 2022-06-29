@@ -51,7 +51,7 @@ struct NodeVar: ITyped{
     string name;
     int offset;
     Type m_type;
-    NodeVar(const Token& token, Type type): token(token), name(token.ident), offset(token.val), m_type(type){}
+    NodeVar(const Token& token, int offset, Type type): token(token), name(token.ident), offset(offset), m_type(type){}
     optional<int> get_offset() const override { return offset; }
     Type get_type() override;
     optional<Token> get_token() const override { return token; }
@@ -203,9 +203,10 @@ struct NodeFuncDef: INode{
     string m_name;
     PtrNode m_statement;
     Type type;
+    int m_local_variable_num;
     
-    NodeFuncDef(const Token& token, string name, PtrNode statement, Type type)
-        : token(token), m_name(move(name)), m_statement(move(statement)), type(type){}
+    NodeFuncDef(const Token& token, string name, PtrNode statement, Type type, int local_variable_num)
+        : token(token), m_name(move(name)), m_statement(move(statement)), type(type), m_local_variable_num(local_variable_num){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };

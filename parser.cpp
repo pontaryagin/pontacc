@@ -1,6 +1,15 @@
 #include "tokenizer.h"
 #include "parser.h"
 
+static int get_variable_offset(Context& context, const Token& token)
+{
+    if (context.m_idents.contains(token.ident))
+    {
+        return context.m_idents[token.ident];
+    }
+    return context.m_idents[token.ident] = context.m_idents_index_max++;
+}
+
 pair<PtrTyped,int> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
     auto [pNode, pos] = next_perser(tokens, start_pos, context);
     while (pos < tokens.size()){
@@ -35,7 +44,7 @@ pair<unique_ptr<NodeVar>, int> parse_declarator(const vector<Token>& tokens, int
     }
     expect_kind(tokens, pos, TokenKind::Ident);
     context.m_var_types[tokens.at(pos).ident] = move(type);
-    auto pNode = make_unique<NodeVar>(tokens.at(pos), type);
+    auto pNode = make_unique<NodeVar>(tokens.at(pos), get_variable_offset(context, tokens.at(pos)), type);
     return {move(pNode), pos+1};
 }
 
@@ -98,7 +107,8 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
         if (is_punct(tokens, pos+1, "(")){
             return parse_func(tokens, pos, context);
         }
-        return {make_unique<NodeVar>(tokens.at(pos), context.m_var_types[tokens.at(pos).ident]), pos+1};
+        auto& token = tokens.at(pos);
+        return {make_unique<NodeVar>(token, get_variable_offset(context, token), context.m_var_types[token.ident]), pos+1};
     }
     return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
 }
@@ -266,7 +276,7 @@ pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos){
     expect_punct(tokens, pos_declr+1, ")");
     expect_punct(tokens, pos_declr+2, "{");
     auto [state, pos_state] = parse_compound_statement(tokens, pos_declr+3, context);
-    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), declr->get_type()), pos_state};
+    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), declr->get_type(), context.m_idents_index_max), pos_state};
 }
 
 // program = func_def*

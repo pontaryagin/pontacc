@@ -5,6 +5,8 @@
 struct Context {
     string func_name;
     map<string, Type> m_var_types;
+    map<string, int> m_idents = {};
+    int m_idents_index_max = 0;
 };
 
 inline auto get_null_statement(Token token){
