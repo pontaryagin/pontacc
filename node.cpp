@@ -53,7 +53,3 @@ Type NodeVar::get_type(){
     return m_type;
 }
 
-Type NodeFunc::get_type(){
-    return TypeInt{};
-}
-

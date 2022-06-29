@@ -4,12 +4,17 @@ struct Type;
 
 using PtrType = shared_ptr<Type>;
 
+
 struct TypeInt{
-    auto operator<=>(const TypeInt&) const = default;
+    string name;
+    auto operator<=>(const TypeInt&) const;
+    bool operator==(const TypeInt& rhs) const { return (*this <=> rhs) == 0; }
 };
 
 struct TypePtr{
     PtrType base;
+    string name;
+
     strong_ordering operator<=>(const TypePtr& rhs) const;
     bool operator==(const TypePtr& rhs) const { return (*this <=> rhs) == 0; }
 };
@@ -17,6 +22,8 @@ struct TypePtr{
 struct TypeFunc{
     PtrType ret;
     vector<PtrType> params;
+    string name;
+
     strong_ordering operator<=>(const TypeFunc&) const;
     bool operator==(const TypeFunc& rhs) const { return (*this <=> rhs) == 0; }
 };
