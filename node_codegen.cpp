@@ -236,7 +236,12 @@ void NodeDeclaration::generate(){
 void NodeFuncDef::generate(){
     gen_header();
     cout << m_name << ":\n";
-    ass_prologue(m_local_variable_num); // TODO: use context.m_identss
+    ass_prologue(m_local_variable_num);
+    // load parameters from register
+    for(int i = 0; i < m_param.size(); ++i)
+    {
+        ass_mov(call_reg_names[i], *ass_stack_reg(*m_param[i]));
+    }
     m_statement->generate();
     ass_epilogue(m_name);
     cout << "  ret\n";

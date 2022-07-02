@@ -1,0 +1,5 @@
+version: '3'
+services:
+  gcc-cpp-sample:
+    image: 'gcc:10'
+    

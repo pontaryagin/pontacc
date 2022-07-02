@@ -202,11 +202,12 @@ struct NodeFuncDef: INode{
     Token token;
     string m_name;
     PtrNode m_statement;
-    Type type;
+    Type m_type;
     int m_local_variable_num;
+    vector<unique_ptr<NodeVar>> m_param;
     
-    NodeFuncDef(const Token& token, string name, PtrNode statement, Type type, int local_variable_num)
-        : token(token), m_name(move(name)), m_statement(move(statement)), type(type), m_local_variable_num(local_variable_num){}
+    NodeFuncDef(const Token& token, string name, PtrNode statement, Type m_type, int local_variable_num, decltype(m_param) param)
+        : token(token), m_name(move(name)), m_statement(move(statement)), m_type(m_type), m_local_variable_num(local_variable_num), m_param(move(param)){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
