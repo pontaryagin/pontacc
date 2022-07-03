@@ -1,5 +1,7 @@
 version: '3'
 services:
-  gcc-cpp-sample:
+  gcc:
     image: 'gcc:10'
-    
+    volumes:
+      - .:/src/cpp
+    working_dir: /src/cpp
