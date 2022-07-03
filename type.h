@@ -14,6 +14,12 @@ struct TypePtr{
     bool operator==(const TypePtr& rhs) const { return (*this <=> rhs) == 0; }
 };
 
+struct TypeArray{
+    PtrType base;
+    strong_ordering operator<=>(const TypeArray& rhs) const;
+    bool operator==(const TypeArray& rhs) const { return (*this <=> rhs) == 0; }
+};
+
 struct TypeFunc{
     PtrType ret;
     vector<PtrType> params;
@@ -21,7 +27,7 @@ struct TypeFunc{
     bool operator==(const TypeFunc& rhs) const { return (*this <=> rhs) == 0; }
 };
 
-struct Type: variant<TypeInt, TypePtr, TypeFunc>{
+struct Type: variant<TypeInt, TypePtr, TypeArray, TypeFunc>{
     // NOTE: this class should not have extra member variable, since variant's destructor is non-virtual
     using variant::variant;
     const variant& as_variant() const { return static_cast<const variant&>(*this); }
@@ -40,6 +46,11 @@ struct Type: variant<TypeInt, TypePtr, TypeFunc>{
 };
 
 inline strong_ordering TypePtr::operator<=>(const TypePtr& rhs) const{
+    const auto& r = *rhs.base;
+    return *base <=> r;
+}
+
+inline strong_ordering TypeArray::operator<=>(const TypeArray& rhs) const{
     const auto& r = *rhs.base;
     return *base <=> r;
 }
