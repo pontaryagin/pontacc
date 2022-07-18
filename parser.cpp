@@ -50,7 +50,7 @@ optional<pair<unique_ptr<NodeVar>, int>> try_parse_param(const vector<Token>& to
 
 // type-suffix = func-params? ")"
 // func-params = param ("," param)*
-optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
+pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
     vector<unique_ptr<NodeVar>> params;
     while(auto ret = try_parse_param(tokens, pos, context)){
         params.push_back(move(ret->first));
@@ -68,19 +68,19 @@ optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_func_suffix(const vector<
 //                | "[" num "]"
 //                | ε
 static
-optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_type_suffix(const vector<Token>& tokens, int pos, Context& context)
+pair<variant<monostate, vector<unique_ptr<NodeVar>>, int>, int> parse_type_suffix(const vector<Token>& tokens, int pos, Context& context)
 {
     if (is_punct(tokens, pos, "(")) {
-        return parse_func_suffix(tokens, pos+1, context);
+        auto ret = parse_func_suffix(tokens, pos+1, context);
+        return make_pair(move(ret.first), ret.second);
     }
     else if (is_punct(tokens, pos, "[")){
         expect_kind(tokens, pos+1, TokenKind::Num);
         auto array_size = tokens.at(pos+1).val;
         expect_punct(tokens, pos+2, "]");
-        return nullopt;
-        // return make_par();
+        return make_pair(array_size, pos+3);
     }
-    return nullopt;
+    return make_pair(monostate{}, pos);
 }
 
 // declarator = "*"* ident type-suffix
@@ -92,9 +92,11 @@ tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(co
     expect_kind(tokens, pos, TokenKind::Ident);
     context.m_var_types[tokens.at(pos).ident] = move(type);
     auto var = make_unique<NodeVar>(tokens.at(pos), get_variable_offset(context, tokens.at(pos)), type);
-    if (auto param = parse_type_suffix(tokens, pos+1, context)){
-        return {move(var), move(param->first), param->second};
+    auto suffix = parse_type_suffix(tokens, pos+1, context);
+    if (auto param = get_if<1>(&suffix.first)){
+        return make_tuple(move(var), move(*param), suffix.second);
     }
+
     return {move(var), vector<unique_ptr<NodeVar>>{}, pos+1};
 }
 
