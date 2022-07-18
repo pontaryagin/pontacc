@@ -48,14 +48,10 @@ optional<pair<unique_ptr<NodeVar>, int>> try_parse_param(const vector<Token>& to
     return make_pair(move(node), pos2);
 }
 
-// type-suffix = ("(" func-params? ")")?
+// type-suffix = func-params? ")"
 // func-params = param ("," param)*
-optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_type_suffix(const vector<Token>& tokens, int pos, Context& context){
-    if (!is_punct(tokens, pos, "(")) {
-        return nullopt;
-    }
+optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
     vector<unique_ptr<NodeVar>> params;
-    pos++;
     while(auto ret = try_parse_param(tokens, pos, context)){
         params.push_back(move(ret->first));
         pos = ret->second;
@@ -66,6 +62,25 @@ optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_type_suffix(const vector<
     }
     expect_punct(tokens, pos, ")");
     return make_pair(move(params), pos+1);
+}
+
+// type-suffix = "(" func-suffix
+//                | "[" num "]"
+//                | ε
+static
+optional<pair<vector<unique_ptr<NodeVar>>, int>> parse_type_suffix(const vector<Token>& tokens, int pos, Context& context)
+{
+    if (is_punct(tokens, pos, "(")) {
+        return parse_func_suffix(tokens, pos+1, context);
+    }
+    else if (is_punct(tokens, pos, "[")){
+        expect_kind(tokens, pos+1, TokenKind::Num);
+        auto array_size = tokens.at(pos+1).val;
+        expect_punct(tokens, pos+2, "]");
+        return nullopt;
+        // return make_par();
+    }
+    return nullopt;
 }
 
 // declarator = "*"* ident type-suffix
