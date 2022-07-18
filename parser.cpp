@@ -92,8 +92,8 @@ tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(co
     expect_kind(tokens, pos, TokenKind::Ident);
     auto var_name = tokens.at(pos);
     pos++;
-    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
     auto suffix = parse_type_suffix(tokens, pos, context);
+    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
     context.m_var_types[var_name.ident] = move(type);
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
