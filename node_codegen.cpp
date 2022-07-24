@@ -95,6 +95,10 @@ void NodeCompoundStatement::generate(){
 }
 
 void NodeVar::generate(){
+    if (m_type.is_type_of<TypeArray>()){
+        generate_address();
+        return;
+    }
     ass_mov(*ass_stack_reg(*this), "%rax");
 }
 

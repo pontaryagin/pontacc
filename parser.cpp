@@ -3,11 +3,16 @@
 
 static int get_variable_offset(Context& context, const Token& token)
 {
+    const Type type = context.m_var_types[token.ident];
     if (context.m_idents.contains(token.ident))
     {
         return context.m_idents[token.ident];
     }
-    return context.m_idents[token.ident] = context.m_idents_index_max++;
+    int size = 1;
+    if (auto&& type_ = get_if<TypeArray>(&type))
+        size = type_->m_size;
+    context.m_idents_index_max += size;
+    return context.m_idents[token.ident] = context.m_idents_index_max;
 }
 
 pair<PtrTyped,int> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
@@ -68,16 +73,26 @@ pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& to
 //                | "[" num "]"
 //                | ε
 static
-pair<variant<monostate, vector<unique_ptr<NodeVar>>, int>, int> parse_type_suffix(const vector<Token>& tokens, int pos, Context& context)
+pair<variant<monostate, vector<unique_ptr<NodeVar>>, int>, int> 
+parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& type)
 {
     if (is_punct(tokens, pos, "(")) {
         auto ret = parse_func_suffix(tokens, pos+1, context);
+        {
+            // create func type
+            auto t = TypeFunc{};
+            t.m_ret = make_shared<Type>(type);
+            for(auto& v: ret.first){
+                t.m_params.emplace_back(make_shared<Type>(v->get_type()));
+            }
+        }
         return make_pair(move(ret.first), ret.second);
     }
     else if (is_punct(tokens, pos, "[")){
         expect_kind(tokens, pos+1, TokenKind::Num);
         auto array_size = tokens.at(pos+1).val;
         expect_punct(tokens, pos+2, "]");
+        type = TypeArray{make_shared<Type>(type), array_size};
         return make_pair(array_size, pos+3);
     }
     return make_pair(monostate{}, pos);
@@ -92,14 +107,14 @@ tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(co
     expect_kind(tokens, pos, TokenKind::Ident);
     auto var_name = tokens.at(pos);
     pos++;
-    auto suffix = parse_type_suffix(tokens, pos, context);
-    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
+    auto suffix = parse_type_suffix(tokens, pos, context, type);
     context.m_var_types[var_name.ident] = move(type);
+    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
     }
     else if (auto array_size = get_if<2>(&suffix.first)){
-
+        return make_tuple(move(var), vector<unique_ptr<NodeVar>>{}, suffix.second);
     }
 
     return {move(var), vector<unique_ptr<NodeVar>>{}, pos};
