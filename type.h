@@ -21,7 +21,7 @@ struct TypeArray{
     int m_size;
     strong_ordering operator<=>(const TypeArray& rhs) const;
     bool operator==(const TypeArray& rhs) const { return (*this <=> rhs) == 0; }
-    int size_of() const { return m_size; }
+    int size_of() const;
 };
 
 struct TypeFunc{
@@ -44,8 +44,25 @@ struct Type: variant<TypeInt, TypePtr, TypeArray, TypeFunc>{
         return TypePtr{move(make_unique<Type>(move(type)))};
     }
     static Type deref(Type type){
-        auto p = get<TypePtr>(type);
-        return move(*p.base);
+        if (auto p = get_if<TypePtr>(&type)){
+            return *p->base;
+        }
+        else if (auto p = get_if<TypeArray>(&type)){
+            return *p->base;
+        }
+        abort();
+    }
+    static int size_of(Type type){
+        return visit([](auto&& t){ return t.size_of(); }, type.as_variant());
+    }
+    static int size_of_base(Type type){
+        if (auto p = get_if<TypePtr>(&type)){
+            return size_of(*p->base);
+        }
+        else if (auto p = get_if<TypeArray>(&type)){
+            return size_of(*p->base);
+        }
+        throw invalid_argument("no base member");
     }
     friend strong_ordering operator<=>(const Type&, const Type&) = default;
 };
@@ -76,4 +93,12 @@ inline strong_ordering TypeFunc::operator<=>(const TypeFunc& rhs) const{
     }
     return std::strong_ordering::equal;
 }
+
+inline int TypeArray::size_of() const { 
+    return m_size * visit([](auto&& t){return t.size_of(); }, base->as_variant()); 
+}
+
+inline bool is_pointer_like(const Type& t){
+    return get_if<TypeArray>(&t) || get_if<TypePtr>(&t);
+};
 

@@ -6,15 +6,15 @@ Type NodeAddress::get_type() {
 
 Type NodeDeref::get_type(){
     auto type = var->get_type();
-    assert_at(get_if<TypePtr>(&type), token, "non pointer type cannot be dereferenced");
+    assert_at(is_pointer_like(type), token, "non pointer type cannot be dereferenced");
     return Type::deref(move(type));
 }
 
 Type NodePunct::get_type(){
     auto&& l = lhs->get_type();
     auto&& r = rhs->get_type();
-    auto l_is_ptr = get_if<TypePtr>(&l);
-    auto r_is_ptr = get_if<TypePtr>(&r);
+    auto l_is_ptr = is_pointer_like(l);
+    auto r_is_ptr = is_pointer_like(r);
     auto l_is_int = get_if<TypeInt>(&l);
     auto r_is_int = get_if<TypeInt>(&r);
 

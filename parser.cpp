@@ -8,9 +8,7 @@ static int get_variable_offset(Context& context, const Token& token)
     {
         return context.m_idents[token.ident];
     }
-    int size = 1;
-    if (auto&& type_ = get_if<TypeArray>(&type))
-        size = type_->m_size;
+    auto size = visit([](auto&& t){return t.size_of(); }, type.as_variant());
     context.m_idents_index_max += size;
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
@@ -70,7 +68,7 @@ pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& to
 }
 
 // type-suffix = "(" func-suffix
-//                | "[" num "]"
+//                | "[" num "]" (type-suffix)?
 //                | ε
 static
 pair<variant<monostate, vector<unique_ptr<NodeVar>>, int>, int> 
@@ -85,6 +83,7 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
             for(auto& v: ret.first){
                 t.m_params.emplace_back(make_shared<Type>(v->get_type()));
             }
+            type = t;
         }
         return make_pair(move(ret.first), ret.second);
     }
@@ -92,8 +91,9 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
         expect_kind(tokens, pos+1, TokenKind::Num);
         auto array_size = tokens.at(pos+1).val;
         expect_punct(tokens, pos+2, "]");
+        auto rest = parse_type_suffix(tokens, pos+3, context, type);
         type = TypeArray{make_shared<Type>(type), array_size};
-        return make_pair(array_size, pos+3);
+        return make_pair(array_size, rest.second);
     }
     return make_pair(monostate{}, pos);
 }
@@ -108,7 +108,7 @@ tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(co
     auto var_name = tokens.at(pos);
     pos++;
     auto suffix = parse_type_suffix(tokens, pos, context, type);
-    context.m_var_types[var_name.ident] = move(type);
+    context.m_var_types[var_name.ident] = type;
     auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
