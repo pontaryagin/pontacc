@@ -44,7 +44,7 @@ static void ass_epilogue(const string& name){
 }
 
 static string ass_stack_reg(int offset){
-    return to_string(-8*(offset)) + "(%rbp)";
+    return to_string(-(offset)) + "(%rbp)";
 }
 
 static optional<string> ass_stack_reg(const INode& node){

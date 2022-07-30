@@ -8,7 +8,7 @@ static int get_variable_offset(Context& context, const Token& token)
     {
         return context.m_idents[token.ident];
     }
-    auto size = visit([](auto&& t){return t->size_of(); }, type) / 8;
+    auto size = visit([](auto&& t){return t->size_of(); }, type);
     context.m_idents_index_max += size;
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
