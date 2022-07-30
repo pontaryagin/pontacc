@@ -183,7 +183,23 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
     return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
 }
 
-// unary = ("+" | "-" | "*" | "&") unary | primary
+// postfix = primary ("[" expr "]")*
+pair<PtrTyped,int> parse_postfix(const vector<Token>& tokens, int pos_, Context& context)
+{
+    auto [node, pos] = parse_primary(tokens, pos_, context);
+    while (is_punct(tokens, pos, "[")) {
+        auto [expr, pos2] = parse_expr(tokens, pos+1, context);
+        auto token_punct = tokens.at(pos);
+        token_punct.from_punct("+");
+        node = make_unique<NodePunct>(token_punct, move(node), move(expr));
+        node = make_unique<NodeDeref>(tokens.at(pos), move(node));
+        expect_punct(tokens, pos2, "]");
+        pos = pos2+1;
+    }
+    return {move(node), pos};
+}
+
+// unary = ("+" | "-" | "*" | "&") unary | postfix
 pair<PtrTyped,int> parse_unary(const vector<Token>& tokens, int pos, Context& context){
     if (is_punct(tokens, pos, "+")){
         return parse_unary(tokens, pos+1, context);
@@ -200,7 +216,7 @@ pair<PtrTyped,int> parse_unary(const vector<Token>& tokens, int pos, Context& co
         auto [pNode, pos_end] = parse_unary(tokens, pos+1, context);
         return {make_unique<NodeAddress>(tokens.at(pos), move(pNode)), pos_end};
     }
-    return parse_primary(tokens, pos, context);
+    return parse_postfix(tokens, pos, context);
 }
 
 //  mul     = unary ("*" unary | "/" unary)*
