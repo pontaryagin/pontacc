@@ -1,7 +1,9 @@
+#pragma once
 #include "common.h"
+#include "box.h"
 
-struct Type;
-
+using Type = variant<box<struct TypeInt>, box<struct TypePtr>, 
+    box<struct TypeArray>, box<struct TypeFunc>>;
 using PtrType = shared_ptr<Type>;
 
 struct TypeInt{
@@ -32,40 +34,51 @@ struct TypeFunc{
     int size_of() const { return 1; }
 };
 
-struct Type: variant<TypeInt, TypePtr, TypeArray, TypeFunc>{
-    // NOTE: this class should not have extra member variable, since variant's destructor is non-virtual
-    using variant::variant;
-    const variant& as_variant() const { return static_cast<const variant&>(*this); }
+template<class T, class Variant>
+inline auto get_from_box(Variant* t) { 
+    auto val = get_if<box<T>>(t);
+    return val ? &(**val) : nullptr;
+}
 
-    template<class T>
-    bool is_type_of() const { return get_if<T>(this); }
-    bool is_ptr() const { return get_if<TypePtr>(this); }
-    static Type to_ptr(Type type){
-        return TypePtr{move(make_unique<Type>(move(type)))};
+template<class T>
+inline bool is_type_of(const Type& t) { return get_from_box<T>(&t); }
+inline bool is_ptr(const Type& t) { return get_from_box<TypePtr>(&t); }
+inline Type to_ptr(Type type){
+    return TypePtr{make_shared<Type>(move(type))};
+}
+inline Type deref(Type type){
+    if (auto p = get_from_box<TypePtr>(&type)){
+        return *p->base;
     }
-    static Type deref(Type type){
-        if (auto p = get_if<TypePtr>(&type)){
-            return *p->base;
-        }
-        else if (auto p = get_if<TypeArray>(&type)){
-            return *p->base;
-        }
-        abort();
+    else if (auto p = get_from_box<TypeArray>(&type)){
+        return *p->base;
     }
-    static int size_of(Type type){
-        return visit([](auto&& t){ return t.size_of(); }, type.as_variant());
+    abort();
+}
+inline int size_of(Type type){
+    return visit([](auto&& t){ return t->size_of(); }, type);
+}
+inline int size_of_base(Type type){
+    if (auto p = get_from_box<TypePtr>(&type)){
+        return size_of(*p->base);
     }
-    static int size_of_base(Type type){
-        if (auto p = get_if<TypePtr>(&type)){
-            return size_of(*p->base);
-        }
-        else if (auto p = get_if<TypeArray>(&type)){
-            return size_of(*p->base);
-        }
-        throw invalid_argument("no base member");
+    else if (auto p = get_from_box<TypeArray>(&type)){
+        return size_of(*p->base);
     }
-    friend strong_ordering operator<=>(const Type&, const Type&) = default;
-};
+    throw invalid_argument("no base member");
+}
+
+// strong_ordering operator<=>(const Type&, const Type&);
+
+template<class LHS, class RHS>
+inline strong_ordering operator<=>(const box<LHS>& lhs, const box<RHS>& rhs){
+    return (*lhs)<=>(*rhs);
+}
+
+template<class LHS, class RHS>
+inline bool operator==(const box<LHS>& lhs, const box<RHS>& rhs){
+    return (*lhs)==(*rhs);
+}
 
 inline strong_ordering TypePtr::operator<=>(const TypePtr& rhs) const{
     const auto& r = *rhs.base;
@@ -95,10 +108,10 @@ inline strong_ordering TypeFunc::operator<=>(const TypeFunc& rhs) const{
 }
 
 inline int TypeArray::size_of() const { 
-    return m_size * visit([](auto&& t){return t.size_of(); }, base->as_variant()); 
+    return m_size * visit([](auto&& t){return t->size_of(); }, *base); 
 }
 
 inline bool is_pointer_like(const Type& t){
-    return get_if<TypeArray>(&t) || get_if<TypePtr>(&t);
+    return get_from_box<TypeArray>(&t) || get_from_box<TypePtr>(&t);
 };
 

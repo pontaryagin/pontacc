@@ -95,7 +95,7 @@ void NodeCompoundStatement::generate(){
 }
 
 void NodeVar::generate(){
-    if (m_type.is_type_of<TypeArray>()){
+    if (is_type_of<TypeArray>(m_type)){
         generate_address();
         return;
     }
@@ -125,7 +125,7 @@ void NodeAddress::generate(){
 void NodeDeref::generate(){
     generate_address();
     auto type = get_type();
-    if (type.is_type_of<TypeArray>()){
+    if (is_type_of<TypeArray>(type)){
         return;
     }
     ass_mov("(%rax)", "%rax");
@@ -139,18 +139,18 @@ void NodeDeref::generate_address() const{
 void NodePunct::ass_adjust_address_mul(){
     auto r = rhs->get_type();
     auto l = lhs->get_type();
-    if (is_pointer_like(r) && get_if<TypeInt>(&l)){
-        auto size = 8 * Type::size_of_base(r);
+    if (is_pointer_like(r) && get_from_box<TypeInt>(&l)){
+        auto size = 8 * size_of_base(r);
         cout << "  imul $"<< size << ", %rax" << endl;
     }
-    else if (get_if<TypeInt>(&r) && is_pointer_like(l)){
-        auto size = 8 * Type::size_of_base(l);
+    else if (get_from_box<TypeInt>(&r) && is_pointer_like(l)){
+        auto size = 8 * size_of_base(l);
         cout << "  imul $"<< size << ", %rdi" << endl;
     }
 }
 
 void NodePunct::ass_adjust_address_div(){
-    if (rhs->get_type().is_ptr() && lhs->get_type().is_ptr()){
+    if (is_ptr(rhs->get_type()) && is_ptr(lhs->get_type())){
         ass_mov("$8", "%rdi");
         cout << "  cqo" << endl;
         cout << "  idiv %rdi" << endl;

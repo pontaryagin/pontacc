@@ -1,13 +1,13 @@
 #include "node.h"
 
 Type NodeAddress::get_type() {
-    return Type::to_ptr(var->get_type());
+    return to_ptr(var->get_type());
 }
 
 Type NodeDeref::get_type(){
     auto type = var->get_type();
     assert_at(is_pointer_like(type), token, "non pointer type cannot be dereferenced");
-    return Type::deref(move(type));
+    return deref(move(type));
 }
 
 Type NodePunct::get_type(){
@@ -15,8 +15,8 @@ Type NodePunct::get_type(){
     auto&& r = rhs->get_type();
     auto l_is_ptr = is_pointer_like(l);
     auto r_is_ptr = is_pointer_like(r);
-    auto l_is_int = get_if<TypeInt>(&l);
-    auto r_is_int = get_if<TypeInt>(&r);
+    auto l_is_int = get_from_box<TypeInt>(&l);
+    auto r_is_int = get_from_box<TypeInt>(&r);
 
     if(l_is_ptr && r_is_ptr){
         assert_at(l == r, token, "diffrent types passed to operator");

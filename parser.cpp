@@ -8,7 +8,7 @@ static int get_variable_offset(Context& context, const Token& token)
     {
         return context.m_idents[token.ident];
     }
-    auto size = visit([](auto&& t){return t.size_of(); }, type.as_variant());
+    auto size = visit([](auto&& t){return t->size_of(); }, type);
     context.m_idents_index_max += size;
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
@@ -102,7 +102,7 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
 tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& context) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
-        type = Type::to_ptr(move(type));
+        type = to_ptr(move(type));
     }
     expect_kind(tokens, pos, TokenKind::Ident);
     auto var_name = tokens.at(pos);
