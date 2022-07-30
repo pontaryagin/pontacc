@@ -71,7 +71,7 @@ pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& to
 //                | "[" num "]" (type-suffix)?
 //                | ε
 static
-pair<variant<monostate, vector<unique_ptr<NodeVar>>, int>, int> 
+pair<variant<monostate, vector<unique_ptr<NodeVar>>>, int> 
 parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& type)
 {
     if (is_punct(tokens, pos, "(")) {
@@ -93,13 +93,14 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
         expect_punct(tokens, pos+2, "]");
         auto rest = parse_type_suffix(tokens, pos+3, context, type);
         type = TypeArray{make_shared<Type>(type), array_size};
-        return make_pair(array_size, rest.second);
+        return make_pair(monostate{}, rest.second);
     }
     return make_pair(monostate{}, pos);
 }
 
 // declarator = "*"* ident type-suffix
-tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& context) {
+tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> 
+parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& context) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
         type = to_ptr(move(type));
@@ -113,11 +114,7 @@ tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(co
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
     }
-    else if (auto array_size = get_if<2>(&suffix.first)){
-        return make_tuple(move(var), vector<unique_ptr<NodeVar>>{}, suffix.second);
-    }
-
-    return {move(var), vector<unique_ptr<NodeVar>>{}, pos};
+    return {move(var), vector<unique_ptr<NodeVar>>{}, suffix.second};
 }
 
 // initializer = declarator ("=" expr)?
