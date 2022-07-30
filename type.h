@@ -8,14 +8,14 @@ using PtrType = shared_ptr<Type>;
 
 struct TypeInt{
     auto operator<=>(const TypeInt&) const = default;
-    int size_of() const { return 1; }
+    int size_of() const { return 8; }
 };
 
 struct TypePtr{
     PtrType base;
     strong_ordering operator<=>(const TypePtr& rhs) const;
     bool operator==(const TypePtr& rhs) const { return (*this <=> rhs) == 0; }
-    int size_of() const { return 1; }
+    int size_of() const { return 8; }
 };
 
 struct TypeArray{
@@ -31,7 +31,7 @@ struct TypeFunc{
     vector<PtrType> m_params;
     strong_ordering operator<=>(const TypeFunc&) const;
     bool operator==(const TypeFunc& rhs) const { return (*this <=> rhs) == 0; }
-    int size_of() const { return 1; }
+    int size_of() const { return 8; }
 };
 
 template<class T, class Variant>

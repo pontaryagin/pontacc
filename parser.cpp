@@ -175,7 +175,7 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
     }
     else if (is_keyword(tokens, pos, "sizeof")) {
         auto [node, pos1] = parse_unary(tokens, pos+1, context);
-        auto num = make_unique<NodeNum>(size_of(node->get_type())*8);
+        auto num = make_unique<NodeNum>(size_of(node->get_type()));
         return {move(num), pos1};
     }
     else if (is_kind(tokens, pos, TokenKind::Ident)){

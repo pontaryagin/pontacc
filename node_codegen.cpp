@@ -140,11 +140,11 @@ void NodePunct::ass_adjust_address_mul(){
     auto r = rhs->get_type();
     auto l = lhs->get_type();
     if (is_pointer_like(r) && get_from_box<TypeInt>(&l)){
-        auto size = 8 * size_of_base(r);
+        auto size = size_of_base(r);
         cout << "  imul $"<< size << ", %rax" << endl;
     }
     else if (get_from_box<TypeInt>(&r) && is_pointer_like(l)){
-        auto size = 8 * size_of_base(l);
+        auto size = size_of_base(l);
         cout << "  imul $"<< size << ", %rdi" << endl;
     }
 }
