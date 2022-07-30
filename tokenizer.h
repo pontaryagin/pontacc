@@ -17,7 +17,8 @@ inline set<string> keywords = {
     "while",
     "continue",
     "break",
-    "int"
+    "int",
+    "sizeof"
 };
 
 struct Token {

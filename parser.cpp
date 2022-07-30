@@ -8,7 +8,7 @@ static int get_variable_offset(Context& context, const Token& token)
     {
         return context.m_idents[token.ident];
     }
-    auto size = visit([](auto&& t){return t->size_of(); }, type);
+    auto size = visit([](auto&& t){return t->size_of(); }, type) / 8;
     context.m_idents_index_max += size;
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
@@ -164,7 +164,7 @@ pair<PtrTyped, int> parse_func(const vector<Token>& tokens, int pos, Context& co
     return {make_unique<NodeFunc>(token_ident, move(args)), pos+1};
 }
 
-//  primary = num | ident args? | "(" expr ")"
+//  primary = num | ident | func | "sizeof" expr | "(" expr ")"
 pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& context){
     auto token_val = tokens.at(pos).punct;
     if (is_punct(tokens, pos, "(")){
@@ -172,6 +172,11 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
         tie(pNode, pos) = parse_expr(tokens, pos+1, context);
         expect_punct(tokens, pos, ")");
         return {move(pNode), pos+1};
+    }
+    else if (is_keyword(tokens, pos, "sizeof")) {
+        auto [node, pos1] = parse_unary(tokens, pos+1, context);
+        auto num = make_unique<NodeNum>(size_of(node->get_type())*8);
+        return {move(num), pos1};
     }
     else if (is_kind(tokens, pos, TokenKind::Ident)){
         if (is_punct(tokens, pos+1, "(")){
