@@ -2,8 +2,9 @@
 
 inline const vector<string> call_reg_names = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
-void gen_header(){
-    cout << "  .global main\n";
+void gen_header(string_view name){
+    cout << "  .global "<< name << endl;
+    cout << "  .text" << endl;
 }
 
 static void ass_pop(string_view reg){
@@ -244,7 +245,7 @@ void NodeDeclaration::generate(){
 }
 
 void NodeFuncDef::generate(){
-    gen_header();
+    gen_header(m_name);
     cout << m_name << ":\n";
     ass_prologue(m_local_variable_num);
     // load parameters from register
@@ -265,7 +266,6 @@ void NodeProgram::generate(){
 }
 
 void generate_main(const PtrNode& node){
-    gen_header();
     node->generate();
 }
 
