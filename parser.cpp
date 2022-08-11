@@ -46,7 +46,7 @@ optional<pair<unique_ptr<NodeVar>, int>> try_parse_param(const vector<Token>& to
     if (!ok) {
         return nullopt;
     }
-    auto [node, param, pos2] = parse_declarator(tokens, pos1, type, context);
+    auto [node, param, pos2] = parse_declarator(tokens, pos1, type, false, context);
     assert(param.size() == 0);
     return make_pair(move(node), pos2);
 }
@@ -100,7 +100,7 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
 
 // declarator = "*"* ident type-suffix
 tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> 
-parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& context) {
+parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context) {
     while(is_punct(tokens, pos, "*")){
         ++pos;
         type = to_ptr(move(type));
@@ -109,7 +109,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& conte
     auto var_name = tokens.at(pos);
     pos++;
     auto suffix = parse_type_suffix(tokens, pos, context, type);
-    context.m_var_types[var_name.ident] = type;
+    (is_global ? context.m_var_types_global[var_name.ident]: context.m_var_types[var_name.ident]) = type;
     auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
@@ -119,7 +119,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& conte
 
 // initializer = declarator ("=" expr)?
 pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type, Context& context) {
-    auto [pNode, param, pos_decl] = parse_declarator(tokens, pos, type, context);
+    auto [pNode, param, pos_decl] = parse_declarator(tokens, pos, type, false, context);
     assert(param.size() == 0);
     if (is_punct(tokens, pos_decl, "=")){
         auto [expr, pos_expr] = parse_expr(tokens, pos_decl+1, context);
@@ -356,24 +356,35 @@ pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, Context&
     return parse_expr_statement(tokens, pos, context);
 }
 
-// func_def = declspec declarator "{" compound-statement
-pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos){
-    map<string, Type> type_map; // type map for variables
-    Context context{"", type_map};
-    auto [_, type, pos_decls] = try_parse_declspec(tokens, pos);
-    auto [declr, param, pos_declr] = parse_declarator(tokens, pos_decls, type, context);
-    context.func_name = declr->name;
-    expect_punct(tokens, pos_declr, "{");
-    auto [state, pos_state] = parse_compound_statement(tokens, pos_declr+1, context);
-    return {make_unique<NodeFuncDef>(tokens.at(pos), declr->name, move(state), declr->get_type(), context.m_idents_index_max, move(param)), pos_state};
+// func_def = "{" compound-statement
+pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos, Type type, const unique_ptr<NodeVar> &node, 
+        std::vector<std::unique_ptr<NodeVar>> &&param, Context& context){
+    expect_punct(tokens, pos, "{");
+    auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
+    return {make_unique<NodeFuncDef>(tokens.at(pos), node->name, move(state), node->get_type(), 
+            context.m_idents_index_max, move(param)), pos_state};
 }
 
-// program = func_def*
+
+// program = (declspec declarator func_def | global-variable)*
+// global-veriable = declspec declarator
 pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
+    map<string, Type> type_map; // type map for variables
+    Context context{"", type_map};
     vector<PtrNode> nodes;
     PtrNode node;
     while(pos < tokens.size()){
-        tie(node, pos)  = parse_func_def(tokens, pos);
+        auto [_, type, pos1] = try_parse_declspec(tokens, pos);
+        auto [node_, param, pos2] = parse_declarator(tokens, pos1, type, true, context);
+        type = node_->get_type();
+        context.func_name = node_->name;
+        if (is_type_of<TypeFunc>(type)){
+            tie(node, pos) = parse_func_def(tokens, pos2, type, node_, move(param), context);
+        }
+        else {
+            node = PtrNode(node_.get());
+            pos = pos2;
+        }
         nodes.push_back(move(node));
     }
     return {make_unique<NodeProgram>(move(nodes)), pos};

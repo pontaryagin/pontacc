@@ -5,6 +5,7 @@
 struct Context {
     string func_name;
     map<string, Type> m_var_types;
+    map<string, Type> m_var_types_global;
     map<string, int> m_idents = {};
     int m_idents_index_max = 0;
 };
@@ -58,7 +59,8 @@ pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos, Contex
 
 tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos);
 
-tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> parse_declarator(const vector<Token>& tokens, int pos, Type type, Context& context);
+tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> 
+parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context);
 
 pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type);
 
