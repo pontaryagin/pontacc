@@ -44,13 +44,13 @@ static void ass_epilogue(const string& name){
     cout << "  pop %rbp" << endl;
 }
 
-static string ass_stack_reg(int offset){
-    return to_string(-(offset)) + "(%rbp)";
-}
-
-static optional<string> ass_stack_reg(const INode& node){
+string NodeVar::ass_stack_reg() const{
+    auto& node = *this;
+    if (node.m_is_global){
+        return node.name + "(%rip)";
+    }
     auto offset = node.get_offset();
-    return offset ? make_optional(ass_stack_reg(*offset)) : nullopt;
+    return to_string(-(*offset)) + "(%rbp)";
 }
 
 void NodeIf::generate(){
@@ -95,16 +95,23 @@ void NodeCompoundStatement::generate(){
     }
 }
 
+void emit_data(const string& name, const Type& t){
+    cout << "  .data" << endl;
+    cout << "  .global " << name << endl;
+    cout << name << ":" << endl;
+    cout << "  .zero " << visit([](auto&& t){return t->size_of();}, t)<<endl;
+}
+
 void NodeVar::generate(){
     if (is_type_of<TypeArray>(m_type)){
         generate_address();
         return;
     }
-    ass_mov(*ass_stack_reg(*this), "%rax");
+    ass_mov(ass_stack_reg(), "%rax");
 }
 
 void NodeVar::generate_address() const{
-    cout << "  lea " << *ass_stack_reg(*this) << ", %rax" << endl;
+    cout << "  lea " << ass_stack_reg() << ", %rax" << endl;
 }
 
 void NodeFunc::generate(){
@@ -234,7 +241,7 @@ void NodeRet::generate(){
 void NodeInitializer::generate(){
     if (expr){
         expr->generate();
-        ass_mov("%rax", *ass_stack_reg(*var.get()));
+        ass_mov("%rax", var->ass_stack_reg());
     }
 }
 
@@ -251,7 +258,7 @@ void NodeFuncDef::generate(){
     // load parameters from register
     for(int i = 0; i < m_param.size(); ++i)
     {
-        ass_mov(call_reg_names[i], *ass_stack_reg(*m_param[i]));
+        ass_mov(call_reg_names[i], m_param[i]->ass_stack_reg());
     }
     m_statement->generate();
     ass_epilogue(m_name);
@@ -261,7 +268,14 @@ void NodeFuncDef::generate(){
 
 void NodeProgram::generate(){
     for (auto& pNode: pNodes){
-        pNode->generate();
+        if (auto pNode_ = dynamic_cast<NodeVar*>(pNode.get())){
+            emit_data(pNode_->name, pNode_->get_type());
+        }
+    }
+    for (auto& pNode: pNodes){
+        if (dynamic_cast<NodeFuncDef*>(pNode.get())){
+            pNode->generate();
+        }
     }
 }
 

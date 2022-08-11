@@ -12,7 +12,8 @@ struct INode{
         verror_at(token, "Left hand side of assignment should be identifier"); 
     }
     virtual optional<int> get_offset() const { return nullopt; }
-
+    virtual optional<bool> is_global() const { return nullopt; }
+    virtual string ass_stack_reg() const { throw; };
     virtual ~INode() {}
 };
 
@@ -51,8 +52,12 @@ struct NodeVar: ITyped{
     string name;
     int offset;
     Type m_type;
-    NodeVar(const Token& token, int offset, Type type): token(token), name(token.ident), offset(offset), m_type(type){}
+    bool m_is_global;
+    NodeVar(const Token& token, int offset, Type type, bool is_global = false)
+        : token(token), name(token.ident), offset(offset), m_type(type), m_is_global(is_global){}
     optional<int> get_offset() const override { return offset; }
+    optional<bool> is_global() const override { return m_is_global; }
+    string ass_stack_reg() const override;
     Type get_type() override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
@@ -87,7 +92,9 @@ struct NodeDeref: ITyped{
 
     NodeDeref(Token token, PtrTyped var)
         : token(token), var(move(var)){}
+    string ass_stack_reg() const override { return var->ass_stack_reg(); };
     optional<int> get_offset() const override { return var->get_offset(); }
+    optional<bool> is_global() const override { return var->is_global(); }
     Type get_type() override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
@@ -184,6 +191,7 @@ struct NodeInitializer: ITyped {
     NodeInitializer(Token token, PtrNode var, PtrNode expr, Type type)
         : token(token), var(move(var)), expr(move(expr)), type(type){}
 
+    string ass_stack_reg() const override { return var->ass_stack_reg(); };
     Type get_type() override { return type; }
     optional<Token> get_token() const override { return token; }
     void generate() override;

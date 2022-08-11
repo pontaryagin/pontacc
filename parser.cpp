@@ -110,7 +110,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     pos++;
     auto suffix = parse_type_suffix(tokens, pos, context, type);
     (is_global ? context.m_var_types_global[var_name.ident]: context.m_var_types[var_name.ident]) = type;
-    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type);
+    auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type, is_global);
     if (auto param = get_if<1>(&suffix.first)){
         return make_tuple(move(var), move(*param), suffix.second);
     }
@@ -183,7 +183,8 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
             return parse_func(tokens, pos, context);
         }
         auto& token = tokens.at(pos);
-        return {make_unique<NodeVar>(token, get_variable_offset(context, token), context.m_var_types[token.ident]), pos+1};
+        auto is_global = context.m_var_types_global.contains(token.ident);
+        return {make_unique<NodeVar>(token, get_variable_offset(context, token), context.m_var_types[token.ident], is_global), pos+1};
     }
     return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
 }
