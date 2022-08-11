@@ -382,8 +382,10 @@ pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
             tie(node, pos) = parse_func_def(tokens, pos2, type, node_, move(param), context);
         }
         else {
-            node = PtrNode(node_.get());
+            node = PtrNode(node_.release());
             pos = pos2;
+            expect_punct(tokens, pos, ";");
+            pos++;
         }
         nodes.push_back(move(node));
     }
