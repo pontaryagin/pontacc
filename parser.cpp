@@ -184,7 +184,8 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
         }
         auto& token = tokens.at(pos);
         auto is_global = context.m_var_types_global.contains(token.ident);
-        return {make_unique<NodeVar>(token, get_variable_offset(context, token), context.m_var_types[token.ident], is_global), pos+1};
+        return {make_unique<NodeVar>(token, get_variable_offset(context, token), 
+            is_global ? context.m_var_types_global.at(token.ident): context.m_var_types.at(token.ident), is_global), pos+1};
     }
     return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
 }
@@ -358,7 +359,7 @@ pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, Context&
 }
 
 // func_def = "{" compound-statement
-pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos, Type type, const unique_ptr<NodeVar> &node, 
+pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos, const unique_ptr<NodeVar> &node, 
         std::vector<std::unique_ptr<NodeVar>> &&param, Context& context){
     expect_punct(tokens, pos, "{");
     auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
@@ -368,7 +369,7 @@ pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos, Type type
 
 
 // program = (declspec declarator func_def | global-variable)*
-// global-veriable = declspec declarator
+// global-veriable = declspec ( declarator ("," declarator) * ) ";"
 pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
     map<string, Type> type_map; // type map for variables
     Context context{"", type_map};
@@ -380,15 +381,20 @@ pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
         type = node_->get_type();
         context.func_name = node_->name;
         if (is_type_of<TypeFunc>(type)){
-            tie(node, pos) = parse_func_def(tokens, pos2, type, node_, move(param), context);
+            tie(node, pos) = parse_func_def(tokens, pos2, node_, move(param), context);
+            nodes.push_back(move(node));
         }
         else {
-            node = PtrNode(node_.release());
             pos = pos2;
+            nodes.push_back(PtrNode(node_.release()));
+            while (is_punct(tokens, pos, ",")){
+                auto [node_, param, pos2] = parse_declarator(tokens, pos+1, type, true, context);
+                pos = pos2;
+                nodes.push_back(PtrNode(node_.release()));
+            }
             expect_punct(tokens, pos, ";");
             pos++;
         }
-        nodes.push_back(move(node));
     }
     return {make_unique<NodeProgram>(move(nodes)), pos};
 }
