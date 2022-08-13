@@ -15,8 +15,8 @@ Type NodePunct::get_type() const{
     auto&& r = rhs->get_type();
     auto l_is_ptr = is_pointer_like(l);
     auto r_is_ptr = is_pointer_like(r);
-    auto l_is_int = get_from_box<TypeInt>(&l);
-    auto r_is_int = get_from_box<TypeInt>(&r);
+    auto l_is_int = from_box<TypeInt>(l);
+    auto r_is_int = from_box<TypeInt>(r);
 
     if(l_is_ptr && r_is_ptr){
         assert_at(l == r, token, "diffrent types passed to operator");
@@ -30,7 +30,6 @@ Type NodePunct::get_type() const{
     }
     else if (l_is_int && r_is_int){
         return l;
-
     }
     assert_at(false, token, "unsupported operator");
     abort();

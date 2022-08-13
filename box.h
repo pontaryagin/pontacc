@@ -30,3 +30,8 @@ public:
     T *operator->() { return _impl.get(); }
     const T *operator->() const { return _impl.get(); }
 };
+
+template<class LHS, class RHS>
+inline bool operator==(const box<LHS>& lhs, const box<RHS>& rhs){
+    return (*lhs)==(*rhs);
+}

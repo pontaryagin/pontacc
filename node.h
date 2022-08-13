@@ -14,19 +14,19 @@ struct INode{
     virtual optional<int> get_offset() const { return nullopt; }
     virtual optional<bool> is_global() const { return nullopt; }
     virtual string ass_stack_reg() const { throw; };
-    virtual ~INode() {}
+    virtual ~INode() = default;
 };
 
-using PtrNode = unique_ptr<INode>;
+using PINode = unique_ptr<INode>;
 
 struct ITyped: virtual INode {
     virtual Type get_type() const = 0;
-    virtual ~ITyped() {}
+    virtual ~ITyped() = default;
 };
 
-using PtrTyped = unique_ptr<ITyped>;
+using PITyped = unique_ptr<ITyped>;
 
-void generate_main(const PtrNode& node);
+void generate_main(const PINode& node);
 
 struct NodeNull: virtual INode{
     Token token;
@@ -67,9 +67,9 @@ struct NodeVar: ITyped{
 struct NodeFunc: ITyped{
     Token token;
     string name;
-    vector<PtrTyped> m_nodes;
+    vector<PITyped> m_nodes;
     
-    NodeFunc(const Token& token, vector<PtrTyped> m_nodes)
+    NodeFunc(const Token& token, vector<PITyped> m_nodes)
         : token(token), name(token.ident), m_nodes(move(m_nodes)){}
     Type get_type() const override;
     optional<Token> get_token() const override { return token; }
@@ -78,8 +78,8 @@ struct NodeFunc: ITyped{
 
 struct NodeAddress: ITyped{
     Token token;
-    PtrTyped var;
-    NodeAddress(Token token, PtrTyped var): token(token), var(move(var)){}
+    PITyped var;
+    NodeAddress(Token token, PITyped var): token(token), var(move(var)){}
 
     Type get_type() const override;
     optional<Token> get_token() const override { return token; }
@@ -88,9 +88,9 @@ struct NodeAddress: ITyped{
 
 struct NodeDeref: ITyped{
     Token token;
-    PtrTyped var;
+    PITyped var;
 
-    NodeDeref(Token token, PtrTyped var)
+    NodeDeref(Token token, PITyped var)
         : token(token), var(move(var)){}
     string ass_stack_reg() const override { return var->ass_stack_reg(); };
     optional<int> get_offset() const override { return var->get_offset(); }
@@ -103,9 +103,9 @@ struct NodeDeref: ITyped{
 
 struct NodePunct: ITyped{
     Token token;
-    PtrTyped lhs, rhs;
+    PITyped lhs, rhs;
 
-    NodePunct(const Token& token, PtrTyped lhs, PtrTyped rhs)
+    NodePunct(const Token& token, PITyped lhs, PITyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
 
     Type get_type() const override;
@@ -117,9 +117,9 @@ struct NodePunct: ITyped{
 
 struct NodeAssign: ITyped{
     Token token;
-    PtrTyped lhs, rhs;
+    PITyped lhs, rhs;
 
-    NodeAssign(Token token, PtrTyped lhs, PtrTyped rhs)
+    NodeAssign(Token token, PITyped lhs, PITyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
     Type get_type() const override;
     optional<Token> get_token() const override { return token; }
@@ -128,10 +128,10 @@ struct NodeAssign: ITyped{
 
 struct NodeRet: ITyped{
     Token token;
-    PtrTyped pNode;
+    PITyped pNode;
     string m_func_name;
 
-    NodeRet(Token token, PtrTyped pNode, string func_name): token(token), pNode(move(pNode)), m_func_name(func_name){}
+    NodeRet(Token token, PITyped pNode, string func_name): token(token), pNode(move(pNode)), m_func_name(func_name){}
     Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
@@ -139,9 +139,9 @@ struct NodeRet: ITyped{
 
 struct NodeCompoundStatement: INode{
     Token token;
-    vector<PtrNode> pNodes;
+    vector<PINode> pNodes;
 
-    NodeCompoundStatement(Token token, vector<PtrNode> pNodes)
+    NodeCompoundStatement(Token token, vector<PINode> pNodes)
         : token(token), pNodes(move(pNodes)){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
@@ -150,14 +150,14 @@ struct NodeCompoundStatement: INode{
 
 struct NodeIf: INode{
     Token token;
-    PtrNode expr;
-    PtrNode statement_if;
-    PtrNode statement_else;
+    PINode expr;
+    PINode statement_if;
+    PINode statement_else;
     int count;
 private:
     static inline int curr_count = 1;
 public:
-    NodeIf(Token token, PtrNode expr, PtrNode statement_if, PtrNode statement_else)
+    NodeIf(Token token, PINode expr, PINode statement_if, PINode statement_else)
         : token(token), expr(move(expr)), statement_if(move(statement_if)), statement_else(move(statement_else)), count(curr_count++)
     {}
     optional<Token> get_token() const override { return token; }
@@ -166,15 +166,15 @@ public:
 
 struct NodeFor: INode{
     Token token;
-    PtrNode expr_init;
-    PtrNode expr_condition;
-    PtrNode expr_increment;
-    PtrNode statement;
+    PINode expr_init;
+    PINode expr_condition;
+    PINode expr_increment;
+    PINode statement;
     int count;
 private:
     static inline int curr_count = 1;
 public:
-    NodeFor(Token token, PtrNode expr_init, PtrNode expr_condition, PtrNode expr_increment, PtrNode statement)
+    NodeFor(Token token, PINode expr_init, PINode expr_condition, PINode expr_increment, PINode statement)
         : token(token), expr_init(move(expr_init)), expr_condition(move(expr_condition)), expr_increment(move(expr_increment)), 
           statement(move(statement)), count(curr_count++)
     {}
@@ -184,11 +184,11 @@ public:
 
 struct NodeInitializer: ITyped {
     Token token;
-    PtrNode var;
-    PtrNode expr;
+    PINode var;
+    PINode expr;
     Type type;
 
-    NodeInitializer(Token token, PtrNode var, PtrNode expr, Type type)
+    NodeInitializer(Token token, PINode var, PINode expr, Type type)
         : token(token), var(move(var)), expr(move(expr)), type(type){}
 
     string ass_stack_reg() const override { return var->ass_stack_reg(); };
@@ -199,9 +199,9 @@ struct NodeInitializer: ITyped {
 
 struct NodeDeclaration: INode {
     Token token;
-    vector<PtrNode> pNodes;
+    vector<PINode> pNodes;
 
-    NodeDeclaration(Token token, vector<PtrNode> pNodes): token(token), pNodes(move(pNodes)){}
+    NodeDeclaration(Token token, vector<PINode> pNodes): token(token), pNodes(move(pNodes)){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -209,21 +209,21 @@ struct NodeDeclaration: INode {
 struct NodeFuncDef: INode{
     Token token;
     string m_name;
-    PtrNode m_statement;
+    PINode m_statement;
     Type m_type;
     int m_local_variable_num;
     vector<unique_ptr<NodeVar>> m_param;
     
-    NodeFuncDef(const Token& token, string name, PtrNode statement, Type m_type, int local_variable_num, decltype(m_param) param)
+    NodeFuncDef(const Token& token, string name, PINode statement, Type m_type, int local_variable_num, decltype(m_param) param)
         : token(token), m_name(move(name)), m_statement(move(statement)), m_type(m_type), m_local_variable_num(local_variable_num), m_param(move(param)){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
 
 struct NodeProgram: INode {
-    vector<PtrNode> pNodes;
+    vector<PINode> pNodes;
 
-    NodeProgram(vector<PtrNode> pNodes): pNodes(move(pNodes)){}
+    NodeProgram(vector<PINode> pNodes): pNodes(move(pNodes)){}
     void generate() override;
 };
 

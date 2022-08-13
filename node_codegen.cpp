@@ -147,11 +147,11 @@ void NodeDeref::generate_address() const{
 void NodePunct::ass_adjust_address_mul(){
     auto r = rhs->get_type();
     auto l = lhs->get_type();
-    if (is_pointer_like(r) && get_from_box<TypeInt>(&l)){
+    if (is_pointer_like(r) && from_box<TypeInt>(l)){
         auto size = size_of_base(r);
         cout << "  imul $"<< size << ", %rax" << endl;
     }
-    else if (get_from_box<TypeInt>(&r) && is_pointer_like(l)){
+    else if (from_box<TypeInt>(r) && is_pointer_like(l)){
         auto size = size_of_base(l);
         cout << "  imul $"<< size << ", %rdi" << endl;
     }
@@ -279,7 +279,7 @@ void NodeProgram::generate(){
     }
 }
 
-void generate_main(const PtrNode& node){
+void generate_main(const PINode& node){
     node->generate();
 }
 
