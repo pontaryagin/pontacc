@@ -186,6 +186,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         }
         auto& token = tokens.at(pos);
         auto is_global = context.m_var_types_global.contains(token.ident);
+        assert_at(is_global || context.m_var_types.contains(token.ident), token, "unknown variable");
         return {make_unique<NodeVar>(token, get_variable_offset(context, token), 
             is_global ? context.m_var_types_global.at(token.ident): context.m_var_types.at(token.ident), is_global), pos+1};
     }
