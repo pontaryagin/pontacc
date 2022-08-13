@@ -13,7 +13,7 @@ static int get_variable_offset(Context& context, const Token& token)
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
 
-pair<PtrTyped,int> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
+PosRet<PtrTyped> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
     auto [pNode, pos] = next_perser(tokens, start_pos, context);
     while (pos < tokens.size()){
         auto token_val = tokens.at(pos).punct;
@@ -29,10 +29,10 @@ pair<PtrTyped,int> parse_left_joint_binary_operator(const vector<Token>& tokens,
     return {move(pNode), pos};
 }
 
-pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos, Context& context);
+PosRet<PtrTyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& context);
 
 // declspec = "int"
-tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) {
+PosRet<bool, Type> try_parse_declspec(const vector<Token>& tokens, int pos) {
     if(is_keyword(tokens, pos, "int")){
         return {true, TypeInt{}, pos+1};
     }
@@ -40,8 +40,7 @@ tuple<bool, Type, int> try_parse_declspec(const vector<Token>& tokens, int pos) 
 }
 
 // param       = declspec declarator
-optional<pair<unique_ptr<NodeVar>, int>> try_parse_param(const vector<Token>& tokens, int pos, Context& context)
-{
+optional<PosRet<unique_ptr<NodeVar>>> try_parse_param(const vector<Token>& tokens, int pos, Context& context){
     auto [ok, type, pos1] = try_parse_declspec(tokens, pos);
     if (!ok) {
         return nullopt;
@@ -53,11 +52,12 @@ optional<pair<unique_ptr<NodeVar>, int>> try_parse_param(const vector<Token>& to
 
 // type-suffix = func-params? ")"
 // func-params = param ("," param)*
-pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
+PosRet<vector<unique_ptr<NodeVar>>> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
     vector<unique_ptr<NodeVar>> params;
     while(auto ret = try_parse_param(tokens, pos, context)){
-        params.push_back(move(ret->first));
-        pos = ret->second;
+        auto&& [param, pos1] = *ret;
+        pos = pos1;
+        params.push_back(move(param));
         if (!is_punct(tokens, pos, ",")){
             break;
         }
@@ -71,36 +71,36 @@ pair<vector<unique_ptr<NodeVar>>, int> parse_func_suffix(const vector<Token>& to
 //                | "[" num "]" (type-suffix)?
 //                | ε
 static
-pair<variant<monostate, vector<unique_ptr<NodeVar>>>, int> 
+PosRet<variant<monostate, vector<unique_ptr<NodeVar>>>> 
 parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& type)
 {
     if (is_punct(tokens, pos, "(")) {
-        auto ret = parse_func_suffix(tokens, pos+1, context);
+        auto [ret, pos2] = parse_func_suffix(tokens, pos+1, context);
         {
             // create func type
             auto t = TypeFunc{};
             t.m_ret = make_shared<Type>(type);
-            for(auto& v: ret.first){
+            for(auto& v: ret){
                 t.m_params.emplace_back(make_shared<Type>(v->get_type()));
             }
             type = t;
         }
-        return make_pair(move(ret.first), ret.second);
+        return make_pair(move(ret), pos2);
     }
     else if (is_punct(tokens, pos, "[")){
         expect_kind(tokens, pos+1, TokenKind::Num);
         auto array_size = tokens.at(pos+1).val;
         expect_punct(tokens, pos+2, "]");
-        auto rest = parse_type_suffix(tokens, pos+3, context, type);
+        auto [rest, pos1] = parse_type_suffix(tokens, pos+3, context, type);
         type = TypeArray{make_shared<Type>(type), array_size};
-        return make_pair(monostate{}, rest.second);
+        return make_pair(monostate{}, pos1);
     }
     return make_pair(monostate{}, pos);
 }
 
 // declarator = "*"* ident type-suffix
-tuple<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>, int> 
-parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context) {
+PosRet<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>>
+parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context){
     while(is_punct(tokens, pos, "*")){
         ++pos;
         type = to_ptr(move(type));
@@ -108,17 +108,17 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     expect_kind(tokens, pos, TokenKind::Ident);
     auto var_name = tokens.at(pos);
     pos++;
-    auto suffix = parse_type_suffix(tokens, pos, context, type);
+    auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
     (is_global ? context.m_var_types_global[var_name.ident]: context.m_var_types[var_name.ident]) = type;
     auto var = make_unique<NodeVar>(var_name, get_variable_offset(context, var_name), type, is_global);
-    if (auto param = get_if<1>(&suffix.first)){
-        return make_tuple(move(var), move(*param), suffix.second);
+    if (auto param = get_if<1>(&suffix)){
+        return make_tuple(move(var), move(*param), pos1);
     }
-    return {move(var), vector<unique_ptr<NodeVar>>{}, suffix.second};
+    return {move(var), vector<unique_ptr<NodeVar>>{}, pos1};
 }
 
 // initializer = declarator ("=" expr)?
-pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type type, Context& context) {
+PosRet<PtrNode> parse_initializer(const vector<Token>& tokens, int pos, Type type, Context& context) {
     auto [pNode, param, pos_decl] = parse_declarator(tokens, pos, type, false, context);
     assert(param.size() == 0);
     if (is_punct(tokens, pos_decl, "=")){
@@ -130,7 +130,8 @@ pair<PtrNode,int> parse_initializer(const vector<Token>& tokens, int pos, Type t
 
 
 // declaration = declspec (initializer ("," initializer)*)? ";"
-tuple<bool, PtrNode, int> try_parse_declaration(const vector<Token>& tokens, int pos, Context& context) {
+PosRet<bool, PtrNode> 
+try_parse_declaration(const vector<Token>& tokens, int pos, Context& context) {
     auto [ok, type, pos1] = try_parse_declspec(tokens, pos);
     if (!ok){
         return {false, nullptr, pos1};
@@ -146,7 +147,7 @@ tuple<bool, PtrNode, int> try_parse_declaration(const vector<Token>& tokens, int
 }
 
 // func = ident "(" assign? ("," assign)* ")"
-pair<PtrTyped, int> parse_func(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_func(const vector<Token>& tokens, int pos, Context& context){
     auto& token_ident = tokens.at(pos);
     vector<PtrTyped> args;
     pos += 2;
@@ -165,7 +166,8 @@ pair<PtrTyped, int> parse_func(const vector<Token>& tokens, int pos, Context& co
 }
 
 //  primary = num | ident | func | "sizeof" expr | "(" expr ")"
-pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> 
+parse_primary(const vector<Token>& tokens, int pos, Context& context){
     auto token_val = tokens.at(pos).punct;
     if (is_punct(tokens, pos, "(")){
         PtrTyped pNode;
@@ -191,7 +193,7 @@ pair<PtrTyped,int> parse_primary(const vector<Token>& tokens, int pos, Context& 
 }
 
 // postfix = primary ("[" expr "]")*
-pair<PtrTyped,int> parse_postfix(const vector<Token>& tokens, int pos_, Context& context)
+PosRet<PtrTyped> parse_postfix(const vector<Token>& tokens, int pos_, Context& context)
 {
     auto [node, pos] = parse_primary(tokens, pos_, context);
     while (is_punct(tokens, pos, "[")) {
@@ -207,7 +209,7 @@ pair<PtrTyped,int> parse_postfix(const vector<Token>& tokens, int pos_, Context&
 }
 
 // unary = ("+" | "-" | "*" | "&") unary | postfix
-pair<PtrTyped,int> parse_unary(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_unary(const vector<Token>& tokens, int pos, Context& context){
     if (is_punct(tokens, pos, "+")){
         return parse_unary(tokens, pos+1, context);
     }
@@ -227,27 +229,27 @@ pair<PtrTyped,int> parse_unary(const vector<Token>& tokens, int pos, Context& co
 }
 
 //  mul     = unary ("*" unary | "/" unary)*
-pair<PtrTyped,int> parse_mul(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_mul(const vector<Token>& tokens, int pos, Context& context){
     return parse_left_joint_binary_operator(tokens, pos, {"*", "/"}, context, parse_unary);
 }
 
 //  add    = mul ("+" mul | "-" mul)*
-pair<PtrTyped,int> parse_add(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_add(const vector<Token>& tokens, int pos, Context& context){
     return parse_left_joint_binary_operator(tokens, pos, {"+", "-"}, context, parse_mul);
 }
 
 //  relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-pair<PtrTyped,int> parse_relational(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_relational(const vector<Token>& tokens, int pos, Context& context){
     return parse_left_joint_binary_operator(tokens, pos, {"<", "<=", ">", ">="}, context, parse_add);
 }
 
 //  equality   = relational ("==" relational | "!=" relational)*
-pair<PtrTyped,int> parse_equality(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrTyped> parse_equality(const vector<Token>& tokens, int pos, Context& context){
     return parse_left_joint_binary_operator(tokens, pos, {"==", "!="}, context, parse_relational);
 }
 
 // assign     = equality ("=" assign)?
-pair<PtrTyped,int> parse_assign(const vector<Token>& tokens, int start_pos, Context& context){
+PosRet<PtrTyped> parse_assign(const vector<Token>& tokens, int start_pos, Context& context){
     auto [pNode, pos] = parse_equality(tokens, start_pos, context);
     if (is_punct(tokens, pos, "=")){
         auto [pNode2, pos2] = parse_assign(tokens, pos+1, context);
@@ -258,14 +260,14 @@ pair<PtrTyped,int> parse_assign(const vector<Token>& tokens, int start_pos, Cont
 }
 
 // expr = assign
-pair<PtrTyped,int> parse_expr(const vector<Token>& tokens, int start_pos, Context& context){
+PosRet<PtrTyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& context){
     return parse_assign(tokens, start_pos, context);
 }
 
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, Context& context);
+PosRet<PtrNode> parse_statement(const vector<Token>& tokens, int pos, Context& context);
 
 // compound-statement = (declaration | statement)* "}"
-pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context){
     vector<PtrNode> pNodes;
     auto token_start = tokens.at(pos);
     while (!is_punct(tokens, pos, "}")){
@@ -281,7 +283,7 @@ pair<PtrNode,int> parse_compound_statement(const vector<Token>& tokens, int pos,
 }
 
 // expr_statement_return = "return" expr ";"
-pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_statement_return(const vector<Token>& tokens, int pos, Context& context){
     assert(is_keyword(tokens, pos, "return"));
     auto [pNode, pos2] = parse_expr(tokens, pos+1, context);
     expect_punct(tokens, pos2, ";");
@@ -289,7 +291,7 @@ pair<PtrNode,int> parse_statement_return(const vector<Token>& tokens, int pos, C
 }
 
 // expr_statement = expr? ";"
-pair<PtrNode,int> parse_expr_statement(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_expr_statement(const vector<Token>& tokens, int pos, Context& context){
     if (is_punct(tokens, pos, ";")){
         return {get_null_statement(tokens.at(pos)), pos+1};
     }
@@ -299,7 +301,7 @@ pair<PtrNode,int> parse_expr_statement(const vector<Token>& tokens, int pos, Con
 }
 
 // statement_for = "for" "(" expr_statement expr_statement expr? ")" statement
-pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_statement_for(const vector<Token>& tokens, int pos, Context& context){
     assert(is_keyword(tokens, pos, "for"));
     expect_punct(tokens, pos+1, "(");
     auto [expr1, pos1] = parse_expr_statement(tokens, pos+2, context);
@@ -315,7 +317,7 @@ pair<PtrNode,int> parse_statement_for(const vector<Token>& tokens, int pos, Cont
 }
 
 // statement_while = "while" "(" expr ")" statement
-pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_statement_while(const vector<Token>& tokens, int pos, Context& context){
     assert(is_keyword(tokens, pos, "while"));
     expect_punct(tokens, pos+1, "(");
     auto [expr, pos_expr] = parse_expr(tokens, pos+2, context);
@@ -325,7 +327,7 @@ pair<PtrNode,int> parse_statement_while(const vector<Token>& tokens, int pos, Co
 }
 
 // statement_if = "if" "(" expr ")" statement ("else" statement)?
-pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_statement_if(const vector<Token>& tokens, int pos, Context& context){
     assert(is_keyword(tokens, pos, "if"));
     expect_punct(tokens, pos+1, "(");
     auto [expr, pos2] = parse_expr(tokens, pos+2, context);
@@ -339,7 +341,7 @@ pair<PtrNode,int> parse_statement_if(const vector<Token>& tokens, int pos, Conte
 }
 
 // statement = statement_if | statement_for | statement_while | "{" compound-statement |  "return" expr ";" |  expr_statement |
-pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, Context& context){
+PosRet<PtrNode> parse_statement(const vector<Token>& tokens, int pos, Context& context){
     if (is_keyword(tokens, pos, "if")){
         return parse_statement_if(tokens, pos, context);
     }
@@ -359,20 +361,20 @@ pair<PtrNode,int> parse_statement(const vector<Token>& tokens, int pos, Context&
 }
 
 // func_def = "{" compound-statement
-pair<PtrNode,int> parse_func_def(const vector<Token>& tokens, int pos, const unique_ptr<NodeVar> &node, 
+PosRet<PtrNode> 
+parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node, 
         std::vector<std::unique_ptr<NodeVar>> &&param, Context& context){
     expect_punct(tokens, pos, "{");
     auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
-    return {make_unique<NodeFuncDef>(tokens.at(pos), node->name, move(state), node->get_type(), 
+    return {make_unique<NodeFuncDef>(tokens.at(pos), node.name, move(state), node.get_type(), 
             context.m_idents_index_max, move(param)), pos_state};
 }
 
 
 // program = (declspec declarator func_def | global-variable)*
 // global-veriable = declspec ( declarator ("," declarator) * ) ";"
-pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
-    map<string, Type> type_map; // type map for variables
-    Context context{"", type_map};
+PosRet<PtrNode> parse_program(const vector<Token>& tokens, int pos){
+    Context context{};
     vector<PtrNode> nodes;
     PtrNode node;
     while(pos < tokens.size()){
@@ -381,7 +383,7 @@ pair<PtrNode,int> parse_program(const vector<Token>& tokens, int pos){
         type = node_->get_type();
         context.func_name = node_->name;
         if (is_type_of<TypeFunc>(type)){
-            tie(node, pos) = parse_func_def(tokens, pos2, node_, move(param), context);
+            tie(node, pos) = parse_func_def(tokens, pos2, *node_.get(), move(param), context);
             nodes.push_back(move(node));
         }
         else {

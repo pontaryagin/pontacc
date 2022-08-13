@@ -20,7 +20,7 @@ struct INode{
 using PtrNode = unique_ptr<INode>;
 
 struct ITyped: virtual INode {
-    virtual Type get_type() = 0;
+    virtual Type get_type() const = 0;
     virtual ~ITyped() {}
 };
 
@@ -42,7 +42,7 @@ struct NodeNum: ITyped{
     NodeNum(int num): num(num){}
     NodeNum(const Token& token): token(token), num(token.val){}
 
-    Type get_type() override {return TypeInt{}; }
+    Type get_type() const override {return TypeInt{}; }
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -58,7 +58,7 @@ struct NodeVar: ITyped{
     optional<int> get_offset() const override { return offset; }
     optional<bool> is_global() const override { return m_is_global; }
     string ass_stack_reg() const override;
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
     void generate_address() const override;
@@ -71,7 +71,7 @@ struct NodeFunc: ITyped{
     
     NodeFunc(const Token& token, vector<PtrTyped> m_nodes)
         : token(token), name(token.ident), m_nodes(move(m_nodes)){}
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -81,7 +81,7 @@ struct NodeAddress: ITyped{
     PtrTyped var;
     NodeAddress(Token token, PtrTyped var): token(token), var(move(var)){}
 
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -95,7 +95,7 @@ struct NodeDeref: ITyped{
     string ass_stack_reg() const override { return var->ass_stack_reg(); };
     optional<int> get_offset() const override { return var->get_offset(); }
     optional<bool> is_global() const override { return var->is_global(); }
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
     void generate_address() const override;
@@ -108,7 +108,7 @@ struct NodePunct: ITyped{
     NodePunct(const Token& token, PtrTyped lhs, PtrTyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
 
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
     void ass_adjust_address_mul();
@@ -121,7 +121,7 @@ struct NodeAssign: ITyped{
 
     NodeAssign(Token token, PtrTyped lhs, PtrTyped rhs)
         : token(token), lhs(move(lhs)), rhs(move(rhs)){}
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -132,7 +132,7 @@ struct NodeRet: ITyped{
     string m_func_name;
 
     NodeRet(Token token, PtrTyped pNode, string func_name): token(token), pNode(move(pNode)), m_func_name(func_name){}
-    Type get_type() override;
+    Type get_type() const override;
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
@@ -192,7 +192,7 @@ struct NodeInitializer: ITyped {
         : token(token), var(move(var)), expr(move(expr)), type(type){}
 
     string ass_stack_reg() const override { return var->ass_stack_reg(); };
-    Type get_type() override { return type; }
+    Type get_type() const override { return type; }
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };
