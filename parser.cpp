@@ -31,10 +31,13 @@ PosRet<PITyped> parse_left_joint_binary_operator(const vector<Token>& tokens, in
 
 PosRet<PITyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& context);
 
-// declspec = "int"
+// declspec = "int" | "char"
 PosRet<optional<Type>> try_parse_declspec(const vector<Token>& tokens, int pos) {
     if(is_keyword(tokens, pos, "int")){
         return {TypeInt{}, pos+1};
+    }
+    else if (is_keyword(tokens, pos, "char")){
+        return {TypeChar{}, pos+1};
     }
     return {nullopt, pos};
 }
@@ -186,6 +189,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         }
         auto& token = tokens.at(pos);
         auto is_global = context.m_var_types_global.contains(token.ident);
+        assert_at(is_global || context.m_var_types.contains(token.ident), token, "unknown variable");
         return {make_unique<NodeVar>(token, get_variable_offset(context, token), 
             is_global ? context.m_var_types_global.at(token.ident): context.m_var_types.at(token.ident), is_global), pos+1};
     }

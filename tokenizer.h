@@ -18,6 +18,7 @@ inline set<string> keywords = {
     "continue",
     "break",
     "int",
+    "char",
     "sizeof"
 };
 

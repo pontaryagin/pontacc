@@ -2,13 +2,18 @@
 #include "common.h"
 #include "box.h"
 
-using Type = variant<box<struct TypeInt>, box<struct TypePtr>, 
+using Type = variant<box<struct TypeInt>, box<struct TypeChar>, box<struct TypePtr>, 
     box<struct TypeArray>, box<struct TypeFunc>>;
 using PtrType = shared_ptr<Type>;
 
 struct TypeInt{
     auto operator<=>(const TypeInt&) const = default;
     int size_of() const { return 8; }
+};
+
+struct TypeChar{
+    auto operator<=>(const TypeChar&) const = default;
+    int size_of() const { return 1; }
 };
 
 struct TypePtr{
@@ -108,3 +113,6 @@ inline bool is_pointer_like(const Type& t){
     return from_box<TypeArray>(t) || from_box<TypePtr>(t);
 };
 
+inline bool is_number(const Type& t){
+    return from_box<TypeInt>(t) || from_box<TypeChar>(t);
+};

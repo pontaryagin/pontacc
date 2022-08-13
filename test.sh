@@ -33,6 +33,8 @@ assert 2 'int main() { return 5-2-1; }'
 assert 11 'int main() { int a_aa=1; int BBB_AAA=3; return 2*(a_aa+BBB_AAA)+3; }'
 assert 1 'int main() { if (1) { if (0) return 3; else return 1; } return 4; }'
 assert 5 'int main() { int i = 1; for (;i<5;) { i = i+1;} return i; }'
+assert 2 'int main() { char x=1; char* z = &x; *z= 2; return x; }'
+assert 1 'int main() { char x=1; char z = 1; z = x; return x; }'
 
 assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
@@ -170,6 +172,14 @@ assert 3 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[3]; }'
 
 assert 8 'int x; int main() { return sizeof(x); }'
 assert 32 'int x[4]; int main() { return sizeof(x); }'
+
+assert 1 'int main() { char x=1; return x; }'
+assert 1 'int main() { char x=1; char y=2; return x; }'
+assert 2 'int main() { char x=1; char y=2; return y; }'
+
+assert 1 'int main() { char x; return sizeof(x); }'
+assert 10 'int main() { char x[10]; return sizeof(x); }'
+assert 1 'int main() { return sub_char(7, 3, 3); } int sub_char(char a, char b, char c) { return a-b-c; }'
 
 
 echo OK
