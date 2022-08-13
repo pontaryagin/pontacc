@@ -1,6 +1,7 @@
 #include "node.h"
 
 inline const vector<string> call_reg_names = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+inline const vector<string> call_reg_names_1 = {"%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"};
 
 void gen_header(string_view name){
     cout << "  .global "<< name << endl;
@@ -19,10 +20,16 @@ static void ass_push(int num){
     cout << "  push $" << num << endl;
 }
 
+static void ass_mov_1_8(string from, string to){
+    cout << "  movsbq " << from << ", " << to << endl;
+}
 static void ass_mov(string from, string to){
     cout << "  mov " << from << ", " << to << endl;
 }
 
+static void ass_mov_1_8(int from, string to){
+    cout << "  movsbq " << "$" << from << ", " << to << endl;
+}
 static void ass_mov(int from, string to){
     cout << "  mov " << "$" << from << ", " << to << endl;
 }
@@ -107,7 +114,12 @@ void NodeVar::generate(){
         generate_address();
         return;
     }
-    ass_mov(ass_stack_reg(), "%rax");
+    if (size_of(m_type) == 1){
+        ass_mov_1_8(ass_stack_reg(), "%rax");
+    }
+    else {
+        ass_mov(ass_stack_reg(), "%rax");
+    }
 }
 
 void NodeVar::generate_address() const{
@@ -121,7 +133,12 @@ void NodeFunc::generate(){
         ass_push("%rax");
     }
     for (int i = ssize(m_nodes)-1; i >= 0 ; --i) {
-        ass_pop(call_reg_names[i]);
+        if (size_of(m_nodes[i]->get_type()) == 1){
+            ass_pop(call_reg_names_1[i]);
+        }
+        else {
+            ass_pop(call_reg_names[i]);
+        }
     }
     cout << "  call " << name << endl;
 }
@@ -241,7 +258,12 @@ void NodeRet::generate(){
 void NodeInitializer::generate(){
     if (expr){
         expr->generate();
-        ass_mov("%rax", var->ass_stack_reg());
+        if (size_of(var->get_type()) == 1){
+            ass_mov("%al", var->ass_stack_reg());
+        }
+        else {
+            ass_mov("%rax", var->ass_stack_reg());
+        }
     }
 }
 
@@ -258,7 +280,12 @@ void NodeFuncDef::generate(){
     // load parameters from register
     for(int i = 0; i < m_param.size(); ++i)
     {
-        ass_mov(call_reg_names[i], m_param[i]->ass_stack_reg());
+        if (size_of(m_param[i]->get_type())==1){
+            ass_mov(call_reg_names_1[i], m_param[i]->ass_stack_reg());
+        }
+        else{
+            ass_mov(call_reg_names[i], m_param[i]->ass_stack_reg());
+        }
     }
     m_statement->generate();
     ass_epilogue(m_name);

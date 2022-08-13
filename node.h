@@ -184,11 +184,11 @@ public:
 
 struct NodeInitializer: ITyped {
     Token token;
-    PINode var;
+    PITyped var;
     PINode expr;
     Type type;
 
-    NodeInitializer(Token token, PINode var, PINode expr, Type type)
+    NodeInitializer(Token token, PITyped var, PINode expr, Type type)
         : token(token), var(move(var)), expr(move(expr)), type(type){}
 
     string ass_stack_reg() const override { return var->ass_stack_reg(); };
