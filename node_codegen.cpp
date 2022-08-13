@@ -1,6 +1,6 @@
 #include "node.h"
 
-inline const vector<string> call_reg_names = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+inline const vector<string> call_reg_names_8 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 inline const vector<string> call_reg_names_1 = {"%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"};
 
 void gen_header(string_view name){
@@ -137,7 +137,7 @@ void NodeFunc::generate(){
             ass_pop(call_reg_names_1[i]);
         }
         else {
-            ass_pop(call_reg_names[i]);
+            ass_pop(call_reg_names_8[i]);
         }
     }
     cout << "  call " << name << endl;
@@ -153,7 +153,12 @@ void NodeDeref::generate(){
     if (is_type_of<TypeArray>(type)){
         return;
     }
-    ass_mov("(%rax)", "%rax");
+    if (size_of(var->get_type()) == 1) {
+        ass_mov_1_8("(%rax)", "%rax");
+    }
+    else {
+        ass_mov("(%rax)", "%rax");
+    }
 }
 
 void NodeDeref::generate_address() const{
@@ -246,8 +251,14 @@ void NodeAssign::generate(){
     ass_push("%rax");
     lhs->generate_address();
     ass_pop("%rdi");
-    ass_mov("%rdi", "(%rax)");
-    ass_mov("%rdi", "%rax");
+    if (size_of(lhs->get_type()) == 1){
+        ass_mov("%dil", "(%rax)");
+        ass_mov_1_8("(%rax)", "%rax");
+    }
+    else {
+        ass_mov("%rdi", "(%rax)");
+        ass_mov("(%rax)", "%rax");
+    }
 }
 
 void NodeRet::generate(){
@@ -284,7 +295,7 @@ void NodeFuncDef::generate(){
             ass_mov(call_reg_names_1[i], m_param[i]->ass_stack_reg());
         }
         else{
-            ass_mov(call_reg_names[i], m_param[i]->ass_stack_reg());
+            ass_mov(call_reg_names_8[i], m_param[i]->ass_stack_reg());
         }
     }
     m_statement->generate();

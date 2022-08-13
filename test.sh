@@ -33,6 +33,8 @@ assert 2 'int main() { return 5-2-1; }'
 assert 11 'int main() { int a_aa=1; int BBB_AAA=3; return 2*(a_aa+BBB_AAA)+3; }'
 assert 1 'int main() { if (1) { if (0) return 3; else return 1; } return 4; }'
 assert 5 'int main() { int i = 1; for (;i<5;) { i = i+1;} return i; }'
+assert 2 'int main() { char x=1; char* z = &x; *z= 2; return x; }'
+assert 1 'int main() { char x=1; char z = 1; z = x; return x; }'
 
 assert 0 'int main() { return 0; }'
 assert 42 'int main() { return 42; }'
