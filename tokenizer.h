@@ -72,16 +72,57 @@ struct Token {
         return len = pos;
     }
 
+    static string as_string(char c){
+        // convert to octal number
+        return "\\" + to_string(c / 0100) + to_string((c%0100) / 010) + to_string((c%010));
+    }
+
+    static string read_escaped_char(char c){
+        switch (c){
+            case 'a': 
+                return as_string('\a');
+            case 'b':
+                return as_string('\b');
+            case 't':
+                return as_string('\t');
+            case 'n':
+                return as_string('\n');
+            case 'v':
+                return as_string('\v');
+            case 'f':
+                return as_string('\f');
+            case 'r':
+                return as_string('\r');
+            case 'e': return "\\033";
+            default: return string{c};
+        }
+    }
+
     int from_string(string_view statement){
         kind = TokenKind::String;
         if (statement[0] != '"'){
             return 0;
         }
         int pos = 1;
+        string res;
         for (;pos < statement.size();++pos){
-            if (statement[pos] == '"'){
-                text = make_shared<string>(statement.substr(1, pos-1));
+            auto curr_char = statement[pos];
+            auto prev_char = statement[pos-1];
+            if (curr_char == '\n'){
+                verror_at(statement, loc, "\" did not closed.\n");
+            }
+            else if (curr_char == '"'){
+                text = make_shared<string>(move(res));
                 return len = pos+1;
+            }
+            else if (curr_char == '\\'){
+                continue;
+            }
+            else if(prev_char == '\\'){
+                res += read_escaped_char(curr_char);
+            }
+            else {
+                res.push_back(curr_char);
             }
         }
         verror_at(statement, loc, "\" did not closed.\n"); abort();
