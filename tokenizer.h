@@ -3,10 +3,12 @@
 #include "common.h"
 
 enum class TokenKind {
+    Unknown,
     Num,
     Punct,
     Ident,
     Keyword,
+    String,
 };
 
 inline set<string> keywords = {
@@ -24,6 +26,7 @@ inline set<string> keywords = {
 
 struct Token {
     int val;
+    shared_ptr<const string> text;
     string punct;
     string ident;
     TokenKind kind;
@@ -69,15 +72,37 @@ struct Token {
         return len = pos;
     }
 
+    int from_string(string_view statement){
+        kind = TokenKind::String;
+        if (statement[0] != '"'){
+            return 0;
+        }
+        int pos = 1;
+        for (;pos < statement.size();++pos){
+            if (statement[pos] == '"'){
+                text = make_shared<string>(statement.substr(1, pos-1));
+                return len = pos+1;
+            }
+        }
+        verror_at(statement, loc, "\" did not closed.\n"); abort();
+    }
+
     Token(string_view statement, int& pos)
         : statement(statement), loc(pos)
     {
         auto curr = statement.substr(pos);
+        if (curr.size() == 0){
+            verror_at(statement, loc, "Fail to tokenize at the end of statement\n");
+        }
         for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}", "&",",", "[", "]"}){
             if (curr.starts_with(op)){
                 pos += from_punct(op);
                 return;
             }
+        }
+        if (auto len = from_string(curr)){
+            pos += len;
+            return;
         }
         if (auto len = from_num(curr)){
             pos += len;

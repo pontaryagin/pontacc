@@ -109,6 +109,13 @@ void emit_data(const string& name, const Type& t){
     cout << "  .zero " << visit([](auto&& t){return t->size_of();}, t)<<endl;
 }
 
+void emit_text_data(const string& name, const string& text){
+    cout << "  .data" << endl;
+    cout << "  .global " << name << endl;
+    cout << name << ":" << endl;
+    cout << "  .string \"" << text << "\"" << endl;
+}
+
 void NodeVar::generate(){
     if (is_type_of<TypeArray>(m_type)){
         generate_address();
@@ -305,6 +312,11 @@ void NodeFuncDef::generate(){
 }
 
 void NodeProgram::generate(){
+    // emit data for text segment
+    for (const auto& [name, text] : m_string_literals){
+        emit_text_data(name, *text);
+    }
+    // emit global var
     for (auto& pNode: pNodes){
         if (auto pNode_ = dynamic_cast<NodeVar*>(pNode.get())){
             emit_data(pNode_->name, pNode_->get_type());

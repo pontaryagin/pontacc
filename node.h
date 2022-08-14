@@ -53,8 +53,10 @@ struct NodeVar: ITyped{
     int offset;
     Type m_type;
     bool m_is_global;
+    NodeVar(Token token, int offset, Type type, string name, bool is_global = false)
+        : token(move(token)), name(name), offset(offset), m_type(move(type)), m_is_global(is_global){}
     NodeVar(const Token& token, int offset, Type type, bool is_global = false)
-        : token(token), name(token.ident), offset(offset), m_type(type), m_is_global(is_global){}
+        : NodeVar(token, offset, move(type), token.ident, is_global) {}
     optional<int> get_offset() const override { return offset; }
     optional<bool> is_global() const override { return m_is_global; }
     string ass_stack_reg() const override;
@@ -222,8 +224,10 @@ struct NodeFuncDef: INode{
 
 struct NodeProgram: INode {
     vector<PINode> pNodes;
+    map<string, shared_ptr<const string>> m_string_literals;
 
-    NodeProgram(vector<PINode> pNodes): pNodes(move(pNodes)){}
+    NodeProgram(vector<PINode> pNodes, decltype(m_string_literals) m_string_literals)
+        : pNodes(move(pNodes)), m_string_literals(move(m_string_literals)){}
     void generate() override;
 };
 
