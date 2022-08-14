@@ -8,6 +8,7 @@ struct Context {
     map<string, Type> m_var_types_global;
     map<string, int> m_idents = {};
     int m_idents_index_max = 0;
+    map<string, shared_ptr<const string>> m_string_literal;
 };
 
 inline auto get_null_statement(Token token){

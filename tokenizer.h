@@ -3,6 +3,7 @@
 #include "common.h"
 
 enum class TokenKind {
+    Unknown,
     Num,
     Punct,
     Ident,
@@ -25,7 +26,7 @@ inline set<string> keywords = {
 
 struct Token {
     int val;
-    string text;
+    shared_ptr<const string> text;
     string punct;
     string ident;
     TokenKind kind;
@@ -72,17 +73,17 @@ struct Token {
     }
 
     int from_string(string_view statement){
+        kind = TokenKind::String;
         if (statement[0] != '"'){
             return 0;
         }
         int pos = 1;
         for (;pos < statement.size();++pos){
             if (statement[pos] == '"'){
-                text = statement.substr(1, pos-1);
+                text = make_shared<string>(statement.substr(1, pos-1));
                 return len = pos+1;
             }
         }
-        kind = TokenKind::String;
         verror_at(statement, loc, "\" did not closed.\n"); abort();
     }
 

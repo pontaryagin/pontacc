@@ -13,6 +13,11 @@ static int get_variable_offset(Context& context, const Token& token)
     return context.m_idents[token.ident] = context.m_idents_index_max;
 }
 
+static string get_global_string_id(){
+    static int num = 0;
+    return ".L.."s + to_string(num);
+}
+
 PosRet<PITyped> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
     auto [pNode, pos] = next_perser(tokens, start_pos, context);
     while (pos < tokens.size()){
@@ -168,10 +173,11 @@ PosRet<PITyped> parse_func(const vector<Token>& tokens, int pos, Context& contex
     return {make_unique<NodeFunc>(token_ident, move(args)), pos+1};
 }
 
-//  primary = num | ident | func | "sizeof" expr | "(" expr ")"
+//  primary = num | string | ident | func | "sizeof" expr | "(" expr ")"
 PosRet<PITyped> 
 parse_primary(const vector<Token>& tokens, int pos, Context& context){
-    auto token_val = tokens.at(pos).punct;
+    auto& token = tokens.at(pos);
+    auto token_val = token.punct;
     if (is_punct(tokens, pos, "(")){
         PITyped pNode;
         tie(pNode, pos) = parse_expr(tokens, pos+1, context);
@@ -187,13 +193,23 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         if (is_punct(tokens, pos+1, "(")){
             return parse_func(tokens, pos, context);
         }
-        auto& token = tokens.at(pos);
         auto is_global = context.m_var_types_global.contains(token.ident);
         assert_at(is_global || context.m_var_types.contains(token.ident), token, "unknown variable");
         return {make_unique<NodeVar>(token, get_variable_offset(context, token), 
             is_global ? context.m_var_types_global.at(token.ident): context.m_var_types.at(token.ident), is_global), pos+1};
     }
-    return {make_unique<NodeNum>(tokens.at(pos)), pos+1};
+    else if(is_kind(tokens, pos, TokenKind::String)) {
+        auto name = get_global_string_id();
+        auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
+        context.m_string_literal[name] = token.text;
+        context.m_var_types_global[name] = type;
+        auto var = make_unique<NodeVar>(token, 0, type, name, true);
+        return {move(var), pos+1};
+    }
+    else if(is_kind(tokens, pos, TokenKind::Num)) {
+        return {make_unique<NodeNum>(token), pos+1};
+    }
+    assert_at(false, token, "unknown token"); abort();
 }
 
 // postfix = primary ("[" expr "]")*
@@ -401,6 +417,6 @@ PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
             pos++;
         }
     }
-    return {make_unique<NodeProgram>(move(nodes)), pos};
+    return {make_unique<NodeProgram>(move(nodes), context.m_string_literal), pos};
 }
 
