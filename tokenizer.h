@@ -72,30 +72,34 @@ struct Token {
         return len = pos;
     }
 
-    static string as_string(char c){
+    static string as_octal(char c){
         // convert to octal number
         return "\\" + to_string(c / 0100) + to_string((c%0100) / 010) + to_string((c%010));
+    }
+
+    static bool is_number(char c){
+        return '0' <= c && c <= '9';
     }
 
     static string read_escaped_char(char c){
         switch (c){
             case 'a': 
-                return as_string('\a');
+                return as_octal('\a');
             case 'b':
-                return as_string('\b');
+                return as_octal('\b');
             case 't':
-                return as_string('\t');
+                return as_octal('\t');
             case 'n':
-                return as_string('\n');
+                return as_octal('\n');
             case 'v':
-                return as_string('\v');
+                return as_octal('\v');
             case 'f':
-                return as_string('\f');
+                return as_octal('\f');
             case 'r':
-                return as_string('\r');
+                return as_octal('\r');
             case 'e': return "\\033";
-            default: return string{c};
         }
+        return string{c};
     }
 
     int from_string(string_view statement){
@@ -119,7 +123,20 @@ struct Token {
                 continue;
             }
             else if(prev_char == '\\'){
-                res += read_escaped_char(curr_char);
+                if (is_number(curr_char)){
+                    auto pos_org = pos;
+                    for(;pos < pos_org + 3; ++pos){
+                        if (!is_number(statement[pos])){
+                            break;
+                        }
+                    }
+                    res += "\\"s;
+                    res += statement.substr(pos_org, pos-pos_org);
+                    --pos;
+                }
+                else {
+                    res += read_escaped_char(curr_char);
+                }
             }
             else {
                 res.push_back(curr_char);
