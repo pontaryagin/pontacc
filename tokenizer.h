@@ -123,16 +123,8 @@ struct Token {
                 continue;
             }
             else if(prev_char == '\\'){
-                if (is_number(curr_char)){
-                    auto pos_org = pos;
-                    for(;pos < pos_org + 3; ++pos){
-                        if (!is_number(statement[pos])){
-                            break;
-                        }
-                    }
-                    res += "\\"s;
-                    res += statement.substr(pos_org, pos-pos_org);
-                    --pos;
+                if (curr_char == 'x' || is_number(curr_char)){
+                    res += "\\"s + string{curr_char};
                 }
                 else {
                     res += read_escaped_char(curr_char);
