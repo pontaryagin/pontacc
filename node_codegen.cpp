@@ -133,6 +133,20 @@ void NodeVar::generate_address() const{
     cout << "  lea " << ass_stack_reg() << ", %rax" << endl;
 }
 
+ITyped& NodeExpressVar::get_last_expr(){
+    auto& nodes = m_statement->pNodes;
+    assert(nodes.size());
+    assert_at(nodes.size(), m_token, "expression statement should not be empty");
+    auto& last = nodes.back();
+    auto var = dynamic_cast<ITyped*>(last.get());
+    assert_at(var != nullptr, m_token, "the last expression in expression statement should be typed");
+    return *var;
+}
+
+void NodeExpressVar::generate(){
+    m_statement->generate();
+}
+
 void NodeFunc::generate(){
     assert_at(m_nodes.size() < 7, token, "argument size should be less than 7");
     for(auto& node: m_nodes){

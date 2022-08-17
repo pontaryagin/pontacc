@@ -87,7 +87,7 @@ PosRet<PITyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& 
 
 PosRet<PINode> parse_statement(const vector<Token>& tokens, int pos, Context& context);
 
-PosRet<PINode> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context);
+PosRet<unique_ptr<NodeCompoundStatement>> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context);
 
 PosRet<PINode> parse_statement_return(const vector<Token>& tokens, int pos, Context& context);
 

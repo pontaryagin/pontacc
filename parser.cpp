@@ -173,12 +173,19 @@ PosRet<PITyped> parse_func(const vector<Token>& tokens, int pos, Context& contex
     return {make_unique<NodeFunc>(token_ident, move(args)), pos+1};
 }
 
-//  primary = num | string | ident | func | "sizeof" expr | "(" expr ")"
+
+//  primary =  num | string | ident | func | "sizeof" expr | "(" expr ")" |  "(" compound-statement ")"
 PosRet<PITyped> 
 parse_primary(const vector<Token>& tokens, int pos, Context& context){
     auto& token = tokens.at(pos);
     auto token_val = token.punct;
-    if (is_punct(tokens, pos, "(")){
+    if (is_punct(tokens, pos, "(") && is_punct(tokens, pos+1, "{")){
+        auto [node,pos1] = parse_compound_statement(tokens, pos+2, context);
+        auto expr = make_unique<NodeExpressVar>(tokens.at(pos), move(node));
+        expect_punct(tokens, pos1, ")");
+        return {move(expr), pos1+1};
+    }
+    else if (is_punct(tokens, pos, "(")){
         PITyped pNode;
         tie(pNode, pos) = parse_expr(tokens, pos+1, context);
         expect_punct(tokens, pos, ")");
@@ -287,7 +294,7 @@ PosRet<PITyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& 
 PosRet<PINode> parse_statement(const vector<Token>& tokens, int pos, Context& context);
 
 // compound-statement = (declaration | statement)* "}"
-PosRet<PINode> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context){
+PosRet<unique_ptr<NodeCompoundStatement>> parse_compound_statement(const vector<Token>& tokens, int pos, Context& context){
     vector<PINode> pNodes;
     auto token_start = tokens.at(pos);
     while (!is_punct(tokens, pos, "}")){

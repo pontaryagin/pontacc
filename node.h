@@ -66,6 +66,21 @@ struct NodeVar: ITyped{
     void generate_address() const override;
 };
 
+// GNU extension
+struct NodeExpressVar: ITyped{
+    Token m_token;
+    string name;
+    int offset;
+    unique_ptr<struct NodeCompoundStatement> m_statement;
+    reference_wrapper<ITyped> m_typed;
+    ITyped& get_last_expr();
+    NodeExpressVar(Token token, decltype(m_statement) statement)
+        : m_token(move(token)), m_statement(move(statement)), m_typed(get_last_expr()){}
+    Type get_type() const override { return m_typed.get().get_type();};
+    optional<Token> get_token() const override { return m_token; }
+    void generate() override;
+};
+
 struct NodeFunc: ITyped{
     Token token;
     string name;
