@@ -3,13 +3,15 @@
 #include "node.h"
 
 class Context {
-    string m_func_name = "";
-    map<string, Type> m_var_types = {};
-    map<string, Type> m_var_types_global = {};
-    map<string, int> m_idents_offset = {};
-    int m_idents_index_max = 0;
-    shared_ptr<map<string, shared_ptr<const string>>> m_string_literal = make_shared<map<string, shared_ptr<const string>>>();
-    Context* m_parent_context = nullptr;
+    string m_func_name;
+    map<string, Type> m_var_types;
+    map<string, Type> m_var_types_global;
+    map<string, int> m_idents_offset;
+    int m_idents_index_max;
+    shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
+        = make_shared<map<string, shared_ptr<const string>>>();
+    Context* m_parent_context;
+    
     optref<const Type> global(const string& name) const{
         if (m_parent_context){
             return m_parent_context->global(name);
@@ -28,7 +30,7 @@ class Context {
         return nullopt;
     }
 public:
-    Context() {}
+    Context() = default;
     Context(Context* parent_context) 
         : m_idents_index_max(parent_context->m_idents_index_max),
         m_string_literal(parent_context->m_string_literal),
