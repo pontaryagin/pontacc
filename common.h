@@ -18,14 +18,17 @@ inline void verror_at(string_view current_input, int pos, string_view fmt, bool 
 inline string read_all_lines(){
     string text;
     string line;
-    while (getline(cin, line))
-    {
-        if (text.size() > 0){
-            text += "\n";
-        }
-        text += line;
-    }
-    return text;
+    std::stringstream buffer;
+    buffer << cin.rdbuf();
+    return buffer.str();
+}
+
+inline string read_file(const string& file_name){
+    string text;
+    ifstream ifs(file_name);
+    std::stringstream buffer;
+    buffer << ifs.rdbuf();
+    return buffer.str();
 }
 
 // Round up n
