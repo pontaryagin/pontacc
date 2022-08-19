@@ -16,7 +16,8 @@ assert() {
     expected="$1"
     input="$2"
 
-    echo "$input" | ./pontacc -o tmp.s - || exit
+    echo "$input" > /tmp/tmp.c
+    ./pontacc -o tmp.s /tmp/tmp.c || exit
     gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     actual="$?"
@@ -227,5 +228,10 @@ assert 3 'int main() { return ({ int x=3; x; }); }'
 assert 2 'int main() { /* return 1; */ return 2; }'
 assert 2 'int main() { // return 1;
 return 2; }'
+
+assert 2 'int main() { int x=2; { int x=3; } return x; }'
+assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'
+assert 3 'int main() { int x=2; { x=3; } return x; }'
+
 
 echo OK

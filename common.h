@@ -35,3 +35,6 @@ inline ostream& ostr(unique_ptr<ostream> os = nullptr){
         os_ = move(os);
     return *os_;
 }
+
+template<class T>
+using optref = optional<reference_wrapper<T>>;
