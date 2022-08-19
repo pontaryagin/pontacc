@@ -172,11 +172,26 @@ inline Tokens tokenize(string_view text){
     Tokens tokens;
     int p = 0;
     while(p < text.size()){
-        if(isspace(text[p])){
+        if (text.substr(p).starts_with("//")){
+            while(text.at(p) != '\n' || p == text.size()){
+                ++p;
+            }
+            ++p;
+        }
+        else if (text.substr(p).starts_with("/*")){
+            p += 2;
+            while(!text.substr(p).starts_with("*/") || p == text.size()){
+                ++p;
+            }
+            p += 2;
+        }
+        else if(isspace(text[p])){
             p++;
             continue;
         }
-        tokens.emplace_back(text, p);
+        else {
+            tokens.emplace_back(text, p);
+        }
     }
     return tokens;
 }
