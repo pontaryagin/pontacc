@@ -17,7 +17,7 @@ int Context::variable_offset(const Token& token)
 
 static string get_global_string_id(){
     static int num = 0;
-    return ".L.."s + to_string(num);
+    return ".L.."s + to_string(num++);
 }
 
 PosRet<PITyped> parse_left_joint_binary_operator(const vector<Token>& tokens, int start_pos, const set<string>& operators, Context& context, PaserType next_perser){
