@@ -4,20 +4,18 @@
 
 class Context {
     string m_func_name;
-    map<string, Type> m_var_types;
-    map<string, Type> m_var_types_global;
-    map<string, int> m_idents_offset;
     int m_idents_index_max;
+    map<string, Type> m_var_types;
+    shared_ptr<map<string, Type>> m_var_types_global
+        = make_shared<map<string, Type>>();
+    map<string, int> m_idents_offset;
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context;
-    
+
     optref<const Type> global(const string& name) const{
-        if (m_parent_context){
-            return m_parent_context->global(name);
-        }
-        auto it = m_var_types_global.find(name);
-        return it == m_var_types_global.end() ? nullopt : optref<const Type>(it->second);
+        auto it = m_var_types_global->find(name);
+        return it == m_var_types_global->end() ? nullopt : optref<const Type>(it->second);
     }
     optref<const Type> local(const string& name) const{
         auto it = m_var_types.find(name);
@@ -33,6 +31,7 @@ public:
     Context() = default;
     Context(Context* parent_context) 
         : m_idents_index_max(parent_context->m_idents_index_max),
+        m_var_types_global(parent_context->m_var_types_global),
         m_string_literal(parent_context->m_string_literal),
         m_parent_context(parent_context)
         {}
@@ -46,12 +45,7 @@ public:
     }
     void set_variable_type(const string& name, bool is_global, Type type){
         if (is_global){
-            if (m_parent_context){
-                m_parent_context->set_variable_type(name, is_global, move(type));
-            }
-            else {
-                m_var_types_global[name] = move(type);
-            }
+            (*m_var_types_global)[name] = move(type);
         }
         else {
             m_var_types[name] = move(type);
