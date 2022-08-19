@@ -62,9 +62,7 @@ int main(int argc, char **argv){
     if (out_file_name){
         ostr(make_unique<ofstream>(out_file_name->data()));
     }
-
     string program = read_input(string(*in_file_name));
-
 
     auto tokens = tokenize(program.c_str());
     auto [node, pos] = parse_program(tokens, 0);

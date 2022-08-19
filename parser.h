@@ -2,13 +2,53 @@
 #include "common.h"
 #include "node.h"
 
-struct Context {
-    string func_name;
+class Context {
+    string m_func_name;
     map<string, Type> m_var_types;
     map<string, Type> m_var_types_global;
     map<string, int> m_idents = {};
     int m_idents_index_max = 0;
     map<string, shared_ptr<const string>> m_string_literal;
+    Context* parent_context;
+    optref<const Type> global(const string& name) const{ 
+        auto it = m_var_types_global.find(name);
+        return it == m_var_types_global.end() ? nullopt : optref<const Type>(it->second);
+    }
+    optref<const Type> local(const string& name) const{
+        auto it = m_var_types.find(name);
+        return it == m_var_types.end() ? nullopt : optref<const Type>(it->second);
+    }
+public:
+    Context() {}
+    // Context(Context* parent_context) : parent_context(parent_context) {}
+    int variable_offset(const Token& token);
+    optref<const Type> variable_type(const string& name, bool is_global) const{
+        return is_global ? global(name) : local(name);
+    }
+    optref<const Type> variable_type(const string& name) const{
+        const auto& l = local(name);
+        return l ? l : global(name);
+        // return global(name) ? global(name): local(name);
+    }
+    void variable_type(const string& name, bool is_global, Type type){
+        auto& t = is_global ? m_var_types_global[name] : m_var_types[name];
+        t = move(type);
+    }
+    void string_literal(const string& name, shared_ptr<const string> val){
+        m_string_literal.emplace(name, move(val));
+    }
+    void func_name(optref<const string> func_name_in){
+        m_func_name = *func_name_in;
+    }
+    const string& func_name() const{
+        return m_func_name;
+    }
+    int idents_index_max() const{
+        return m_idents_index_max;
+    }
+    const map<string, shared_ptr<const string>>& string_literal(){
+        return m_string_literal;
+    }
 };
 
 inline auto get_null_statement(Token token){
