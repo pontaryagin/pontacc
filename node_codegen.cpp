@@ -1,54 +1,56 @@
 #include "node.h"
 
+extern unique_ptr<ostream> p_ostr;
+
 inline const vector<string> call_reg_names_8 = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 inline const vector<string> call_reg_names_1 = {"%dil", "%sil", "%dl", "%cl", "%r8b", "%r9b"};
 
 void gen_header(string_view name){
-    cout << "  .global "<< name << endl;
-    cout << "  .text" << endl;
+    ostr() << "  .global "<< name << endl;
+    ostr() << "  .text" << endl;
 }
 
 static void ass_pop(string_view reg){
-    cout << "  pop " << reg << endl;
+    ostr() << "  pop " << reg << endl;
 }
 
 static void ass_push(string_view reg){
-    cout << "  push " << reg << endl;
+    ostr() << "  push " << reg << endl;
 }
 
 static void ass_push(int num){
-    cout << "  push $" << num << endl;
+    ostr() << "  push $" << num << endl;
 }
 
 static void ass_mov_1_8(string from, string to){
-    cout << "  movsbq " << from << ", " << to << endl;
+    ostr() << "  movsbq " << from << ", " << to << endl;
 }
 static void ass_mov(string from, string to){
-    cout << "  mov " << from << ", " << to << endl;
+    ostr() << "  mov " << from << ", " << to << endl;
 }
 
 static void ass_mov_1_8(int from, string to){
-    cout << "  movsbq " << "$" << from << ", " << to << endl;
+    ostr() << "  movsbq " << "$" << from << ", " << to << endl;
 }
 static void ass_mov(int from, string to){
-    cout << "  mov " << "$" << from << ", " << to << endl;
+    ostr() << "  mov " << "$" << from << ", " << to << endl;
 }
 
 static void ass_label(string s){
-    cout << s << ":" << endl;
+    ostr() << s << ":" << endl;
 }
 
 static void ass_prologue(int indent_count){
     indent_count = round_up(indent_count, 2); // Some function requires 16-byte alignment for rsp register
-    cout << "  push %rbp" << endl;
-    cout << "  mov %rsp, %rbp" << endl;
-    cout << "  sub $" << indent_count*8 << ", %rsp" << endl;
+    ostr() << "  push %rbp" << endl;
+    ostr() << "  mov %rsp, %rbp" << endl;
+    ostr() << "  sub $" << indent_count*8 << ", %rsp" << endl;
 }
 
 static void ass_epilogue(const string& name){
-    cout << ".L.return." << name << ":" << endl;
-    cout << "  mov %rbp, %rsp" << endl;
-    cout << "  pop %rbp" << endl;
+    ostr() << ".L.return." << name << ":" << endl;
+    ostr() << "  mov %rbp, %rsp" << endl;
+    ostr() << "  pop %rbp" << endl;
 }
 
 string NodeVar::ass_stack_reg() const{
@@ -63,10 +65,10 @@ string NodeVar::ass_stack_reg() const{
 void NodeIf::generate(){
     expr->generate();
     auto count_str = to_string(count);
-    cout << "cmp $0" << ", %rax" << endl;
-    cout << "je " << ".L.else." << count_str << endl;
+    ostr() << "cmp $0" << ", %rax" << endl;
+    ostr() << "je " << ".L.else." << count_str << endl;
     statement_if->generate();
-    cout << "jmp " << ".L.end." << count_str << endl;
+    ostr() << "jmp " << ".L.end." << count_str << endl;
     ass_label(".L.else." + count_str);
     if (statement_else){
         statement_else->generate();
@@ -84,11 +86,11 @@ void NodeFor::generate(){
     else {
         expr_condition->generate();
     }
-    cout << "cmp $0" << ", %rax" << endl;
-    cout << "je " << ".L.end." + count_str << endl;
+    ostr() << "cmp $0" << ", %rax" << endl;
+    ostr() << "je " << ".L.end." + count_str << endl;
     statement->generate();
     expr_increment->generate();
-    cout << "jmp " << ".L.for." + count_str << endl;
+    ostr() << "jmp " << ".L.for." + count_str << endl;
     ass_label(".L.end." + count_str);
 }
 
@@ -103,17 +105,17 @@ void NodeCompoundStatement::generate(){
 }
 
 void emit_data(const string& name, const Type& t){
-    cout << "  .data" << endl;
-    cout << "  .global " << name << endl;
-    cout << name << ":" << endl;
-    cout << "  .zero " << visit([](auto&& t){return t->size_of();}, t)<<endl;
+    ostr() << "  .data" << endl;
+    ostr() << "  .global " << name << endl;
+    ostr() << name << ":" << endl;
+    ostr() << "  .zero " << visit([](auto&& t){return t->size_of();}, t)<<endl;
 }
 
 void emit_text_data(const string& name, const string& text){
-    cout << "  .data" << endl;
-    cout << "  .global " << name << endl;
-    cout << name << ":" << endl;
-    cout << "  .string \"" << text << "\"" << endl;
+    ostr() << "  .data" << endl;
+    ostr() << "  .global " << name << endl;
+    ostr() << name << ":" << endl;
+    ostr() << "  .string \"" << text << "\"" << endl;
 }
 
 void NodeVar::generate(){
@@ -130,7 +132,7 @@ void NodeVar::generate(){
 }
 
 void NodeVar::generate_address() const{
-    cout << "  lea " << ass_stack_reg() << ", %rax" << endl;
+    ostr() << "  lea " << ass_stack_reg() << ", %rax" << endl;
 }
 
 ITyped& NodeExpressVar::get_last_expr(){
@@ -161,7 +163,7 @@ void NodeFunc::generate(){
             ass_pop(call_reg_names_8[i]);
         }
     }
-    cout << "  call " << name << endl;
+    ostr() << "  call " << name << endl;
 }
 
 void NodeAddress::generate(){
@@ -192,19 +194,19 @@ void NodePunct::ass_adjust_address_mul(){
     auto l = lhs->get_type();
     if (is_pointer_like(r) && from_box<TypeInt>(l)){
         auto size = size_of_base(r);
-        cout << "  imul $"<< size << ", %rax" << endl;
+        ostr() << "  imul $"<< size << ", %rax" << endl;
     }
     else if (from_box<TypeInt>(r) && is_pointer_like(l)){
         auto size = size_of_base(l);
-        cout << "  imul $"<< size << ", %rdi" << endl;
+        ostr() << "  imul $"<< size << ", %rdi" << endl;
     }
 }
 
 void NodePunct::ass_adjust_address_div(){
     if (is_ptr(rhs->get_type()) && is_ptr(lhs->get_type())){
         ass_mov("$8", "%rdi");
-        cout << "  cqo" << endl;
-        cout << "  idiv %rdi" << endl;
+        ostr() << "  cqo" << endl;
+        ostr() << "  idiv %rdi" << endl;
     }
 }
 
@@ -218,49 +220,49 @@ void NodePunct::generate(){
     auto& type = token.punct;
     if(type == "+"){
         ass_adjust_address_mul();
-        cout << "  add %rdi, %rax" << endl;
+        ostr() << "  add %rdi, %rax" << endl;
     }
     else if(type == "-"){
         ass_adjust_address_mul();
-        cout << "  sub %rdi, %rax" << endl;
+        ostr() << "  sub %rdi, %rax" << endl;
         ass_adjust_address_div();
     }
     else if(type == "*"){
-        cout << "  imul %rdi, %rax" << endl;
+        ostr() << "  imul %rdi, %rax" << endl;
     }
     else if(type == "/"){
-        cout << "  cqo" << endl;
-        cout << "  idiv %rdi" << endl;
+        ostr() << "  cqo" << endl;
+        ostr() << "  idiv %rdi" << endl;
     }
     else if(type == "=="){
-        cout << "  cmp %rdi, %rax" << endl;
-        cout << "  sete %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rdi, %rax" << endl;
+        ostr() << "  sete %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else if(type == "!="){
-        cout << "  cmp %rdi, %rax" << endl;
-        cout << "  setne %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rdi, %rax" << endl;
+        ostr() << "  setne %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else if(type == "<="){
-        cout << "  cmp %rdi, %rax" << endl;
-        cout << "  setle %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rdi, %rax" << endl;
+        ostr() << "  setle %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else if(type == "<"){
-        cout << "  cmp %rdi, %rax" << endl;
-        cout << "  setl %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rdi, %rax" << endl;
+        ostr() << "  setl %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else if(type == ">="){
-        cout << "  cmp %rax, %rdi" << endl;
-        cout << "  setle %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rax, %rdi" << endl;
+        ostr() << "  setle %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else if(type == ">"){
-        cout << "  cmp %rax, %rdi" << endl;
-        cout << "  setl %al" << endl;
-        cout << "  movzb %al, %rax" << endl;
+        ostr() << "  cmp %rax, %rdi" << endl;
+        ostr() << "  setl %al" << endl;
+        ostr() << "  movzb %al, %rax" << endl;
     }
     else{
         verror_at(token, "Unknown token in generate for NodePunct");
@@ -284,7 +286,7 @@ void NodeAssign::generate(){
 
 void NodeRet::generate(){
     pNode->generate();
-    cout << "  jmp .L.return." << m_func_name << endl;
+    ostr() << "  jmp .L.return." << m_func_name << endl;
 }
 
 void NodeInitializer::generate(){
@@ -307,7 +309,7 @@ void NodeDeclaration::generate(){
 
 void NodeFuncDef::generate(){
     gen_header(m_name);
-    cout << m_name << ":\n";
+    ostr() << m_name << ":\n";
     ass_prologue(m_local_variable_num);
     // load parameters from register
     for(int i = 0; i < m_param.size(); ++i)
@@ -321,7 +323,7 @@ void NodeFuncDef::generate(){
     }
     m_statement->generate();
     ass_epilogue(m_name);
-    cout << "  ret\n";
+    ostr() << "  ret\n";
     
 }
 

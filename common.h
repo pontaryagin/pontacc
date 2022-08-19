@@ -14,23 +14,6 @@ inline void verror_at(string_view current_input, int pos, string_view fmt, bool 
     throw;
 }
 
-
-inline string read_all_lines(){
-    string text;
-    string line;
-    std::stringstream buffer;
-    buffer << cin.rdbuf();
-    return buffer.str();
-}
-
-inline string read_file(const string& file_name){
-    string text;
-    ifstream ifs(file_name);
-    std::stringstream buffer;
-    buffer << ifs.rdbuf();
-    return buffer.str();
-}
-
 // Round up n
 inline constexpr int round_up(int n, int align){
     return (n + align - 1) / align * align;
@@ -45,3 +28,10 @@ inline ToType variant_cast(FromType&& v)
 }
 
 template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
+
+inline ostream& ostr(unique_ptr<ostream> os = nullptr){
+    static unique_ptr<ostream> os_;
+    if (os)
+        os_ = move(os);
+    return *os_;
+}

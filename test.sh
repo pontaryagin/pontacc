@@ -16,7 +16,7 @@ assert() {
     expected="$1"
     input="$2"
 
-    echo "$input" | ./pontacc - > tmp.s || exit
+    echo "$input" | ./pontacc -o tmp.s - || exit
     gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     actual="$?"
