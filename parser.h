@@ -3,17 +3,17 @@
 #include "node.h"
 
 class Context {
-    string m_func_name;
-    map<string, Type> m_var_types;
-    map<string, Type> m_var_types_global;
-    map<string, int> m_idents = {};
+    string m_func_name = "";
+    map<string, Type> m_var_types = {};
+    map<string, Type> m_var_types_global = {};
+    map<string, int> m_idents_offset = {};
     int m_idents_index_max = 0;
-    map<string, shared_ptr<const string>> m_string_literal;
+    shared_ptr<map<string, shared_ptr<const string>>> m_string_literal = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context = nullptr;
     optref<const Type> global(const string& name) const{
-        // if (m_parent_context){
-        //     return m_parent_context->global(name);
-        // }
+        if (m_parent_context){
+            return m_parent_context->global(name);
+        }
         auto it = m_var_types_global.find(name);
         return it == m_var_types_global.end() ? nullopt : optref<const Type>(it->second);
     }
@@ -22,14 +22,18 @@ class Context {
         if (it != m_var_types.end()){
             return optref<const Type>(it->second);
         }
-        return m_parent_context->local(name);
+        if (m_parent_context){
+            return m_parent_context->local(name);
+        }
+        return nullopt;
     }
 public:
     Context() {}
-    // Context(Context* parent_context) 
-    //     : m_idents_index_max(parent_context->m_idents_index_max),
-    //     m_parent_context(parent_context)
-    //     {}
+    Context(Context* parent_context) 
+        : m_idents_index_max(parent_context->m_idents_index_max),
+        m_string_literal(parent_context->m_string_literal),
+        m_parent_context(parent_context)
+        {}
     int variable_offset(const Token& token);
     optref<const Type> variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
@@ -40,22 +44,21 @@ public:
     }
     void set_variable_type(const string& name, bool is_global, Type type){
         if (is_global){
-        //     if (m_parent_context){
-        //         m_parent_context->set_variable_type(name, is_global, move(type));
-        //     }
-        //     else {
-                auto & x = m_var_types_global[name];
-                x = move(type);
-        //     }
+            if (m_parent_context){
+                m_parent_context->set_variable_type(name, is_global, move(type));
+            }
+            else {
+                m_var_types_global[name] = move(type);
+            }
         }
         else {
             m_var_types[name] = move(type);
         }
     }
     void string_literal(const string& name, shared_ptr<const string> val){
-        m_string_literal.emplace(name, move(val));
+        m_string_literal->emplace(name, move(val));
     }
-    void func_name(optref<const string> func_name_in){
+    void set_func_name(optref<const string> func_name_in){
         m_func_name = *func_name_in;
     }
     const string& func_name() const{
@@ -65,7 +68,7 @@ public:
         return m_idents_index_max;
     }
     const map<string, shared_ptr<const string>>& string_literal(){
-        return m_parent_context ? m_parent_context->string_literal() : m_string_literal;
+        return *m_string_literal;
     }
 };
 

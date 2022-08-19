@@ -3,14 +3,16 @@
 
 int Context::variable_offset(const Token& token)
 {
-    const Type type = m_var_types[token.ident];
-    if (m_idents.contains(token.ident))
-    {
-        return m_idents[token.ident];
+    if (m_idents_offset.contains(token.ident)){
+        return m_idents_offset[token.ident];
     }
-    auto size = visit([](auto&& t){return t->size_of(); }, type);
+    if (m_parent_context && !m_var_types.contains(token.ident)){
+        return m_parent_context->variable_offset(token);
+    }
+    auto type = variable_type(token.ident);
+    auto size = visit([](auto&& t){return t->size_of(); }, type->get());
     m_idents_index_max += size;
-    return m_idents[token.ident] = m_idents_index_max;
+    return m_idents_offset[token.ident] = m_idents_index_max;
 }
 
 static string get_global_string_id(){
@@ -378,8 +380,8 @@ PosRet<PINode> parse_statement(const vector<Token>& tokens, int pos, Context& co
         return parse_statement_while(tokens, pos, context);
     }
     if (is_punct(tokens, pos, "{")){
-        // Context sub_context(&context);
-        return parse_compound_statement(tokens, pos+1, context);
+        Context sub_context(&context);
+        return parse_compound_statement(tokens, pos+1, sub_context);
     }
     if (is_keyword(tokens, pos, "return")){
         return parse_statement_return(tokens, pos, context);
@@ -401,14 +403,15 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
 // program = (declspec declarator func_def | global-variable)*
 // global-veriable = declspec ( declarator ("," declarator) * ) ";"
 PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
-    Context context{};
+    Context context_main{};
     vector<PINode> nodes;
     PINode node;
     while(pos < tokens.size()){
+        Context context(&context_main);
         auto [type, pos1] = try_parse_declspec(tokens, pos);
         auto [node_, param, pos2] = parse_declarator(tokens, pos1, *type, true, context);
         type = node_->get_type();
-        context.func_name(node_->name);
+        context.set_func_name(node_->name);
         if (is_type_of<TypeFunc>(*type)){
             tie(node, pos) = parse_func_def(tokens, pos2, *node_.get(), move(param), context);
             nodes.push_back(move(node));
@@ -425,6 +428,6 @@ PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
             pos++;
         }
     }
-    return {make_unique<NodeProgram>(move(nodes), context.string_literal()), pos};
+    return {make_unique<NodeProgram>(move(nodes), context_main.string_literal()), pos};
 }
 
