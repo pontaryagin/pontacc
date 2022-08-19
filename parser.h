@@ -5,14 +5,25 @@
 class Context {
     string m_func_name;
     int m_idents_index_max;
+    map<string, int> m_idents_offset;
     map<string, Type> m_var_types;
     shared_ptr<map<string, Type>> m_var_types_global
         = make_shared<map<string, Type>>();
-    map<string, int> m_idents_offset;
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context;
-
+public:
+    Context() = default;
+    Context(Context* parent_context) : 
+        m_func_name(parent_context->m_func_name),
+        m_idents_index_max(parent_context->m_idents_index_max),
+        m_idents_offset(),
+        m_var_types(),
+        m_var_types_global(parent_context->m_var_types_global),
+        m_string_literal(parent_context->m_string_literal),
+        m_parent_context(parent_context)
+        {}
+private:
     optref<const Type> global(const string& name) const{
         auto it = m_var_types_global->find(name);
         return it == m_var_types_global->end() ? nullopt : optref<const Type>(it->second);
@@ -28,13 +39,6 @@ class Context {
         return nullopt;
     }
 public:
-    Context() = default;
-    Context(Context* parent_context) 
-        : m_idents_index_max(parent_context->m_idents_index_max),
-        m_var_types_global(parent_context->m_var_types_global),
-        m_string_literal(parent_context->m_string_literal),
-        m_parent_context(parent_context)
-        {}
     int variable_offset(const Token& token);
     optref<const Type> variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
@@ -58,7 +62,7 @@ public:
         m_func_name = *func_name_in;
     }
     const string& func_name() const{
-        return m_func_name != "" ? m_func_name : m_parent_context->func_name();
+        return m_func_name;
     }
     int idents_index_max() const{
         return m_idents_index_max;
