@@ -5,3 +5,5 @@
 tmp*
 pontacc
 memo.md
+/test/*.exe
+*.tmp
