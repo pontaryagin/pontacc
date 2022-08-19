@@ -9,18 +9,27 @@ class Context {
     map<string, int> m_idents = {};
     int m_idents_index_max = 0;
     map<string, shared_ptr<const string>> m_string_literal;
-    Context* parent_context;
-    optref<const Type> global(const string& name) const{ 
+    Context* m_parent_context = nullptr;
+    optref<const Type> global(const string& name) const{
+        // if (m_parent_context){
+        //     return m_parent_context->global(name);
+        // }
         auto it = m_var_types_global.find(name);
         return it == m_var_types_global.end() ? nullopt : optref<const Type>(it->second);
     }
     optref<const Type> local(const string& name) const{
         auto it = m_var_types.find(name);
-        return it == m_var_types.end() ? nullopt : optref<const Type>(it->second);
+        if (it != m_var_types.end()){
+            return optref<const Type>(it->second);
+        }
+        return m_parent_context->local(name);
     }
 public:
     Context() {}
-    // Context(Context* parent_context) : parent_context(parent_context) {}
+    // Context(Context* parent_context) 
+    //     : m_idents_index_max(parent_context->m_idents_index_max),
+    //     m_parent_context(parent_context)
+    //     {}
     int variable_offset(const Token& token);
     optref<const Type> variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
@@ -28,11 +37,20 @@ public:
     optref<const Type> variable_type(const string& name) const{
         const auto& l = local(name);
         return l ? l : global(name);
-        // return global(name) ? global(name): local(name);
     }
-    void variable_type(const string& name, bool is_global, Type type){
-        auto& t = is_global ? m_var_types_global[name] : m_var_types[name];
-        t = move(type);
+    void set_variable_type(const string& name, bool is_global, Type type){
+        if (is_global){
+        //     if (m_parent_context){
+        //         m_parent_context->set_variable_type(name, is_global, move(type));
+        //     }
+        //     else {
+                auto & x = m_var_types_global[name];
+                x = move(type);
+        //     }
+        }
+        else {
+            m_var_types[name] = move(type);
+        }
     }
     void string_literal(const string& name, shared_ptr<const string> val){
         m_string_literal.emplace(name, move(val));
@@ -41,13 +59,13 @@ public:
         m_func_name = *func_name_in;
     }
     const string& func_name() const{
-        return m_func_name;
+        return m_func_name != "" ? m_func_name : m_parent_context->func_name();
     }
     int idents_index_max() const{
         return m_idents_index_max;
     }
     const map<string, shared_ptr<const string>>& string_literal(){
-        return m_string_literal;
+        return m_parent_context ? m_parent_context->string_literal() : m_string_literal;
     }
 };
 

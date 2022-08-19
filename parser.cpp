@@ -117,7 +117,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     auto var_name = tokens.at(pos);
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
-    context.variable_type(var_name.ident, is_global, type);
+    context.set_variable_type(var_name.ident, is_global, type);
     auto var = make_unique<NodeVar>(var_name, context.variable_offset(var_name), type, is_global);
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
@@ -209,7 +209,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto name = get_global_string_id();
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
-        context.variable_type(name, true, type);
+        context.set_variable_type(name, true, type);
         auto var = make_unique<NodeVar>(token, 0, type, name, true);
         return {move(var), pos+1};
     }
