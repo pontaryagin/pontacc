@@ -157,7 +157,7 @@ void NodeFunc::generate(){
     }
     for (int i = ssize(m_nodes)-1; i >= 0 ; --i) {
         if (size_of(m_nodes[i]->get_type()) == 1){
-            ass_pop(call_reg_names_1[i]);
+            ass_pop(call_reg_names_8[i]);
         }
         else {
             ass_pop(call_reg_names_8[i]);
