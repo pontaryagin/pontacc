@@ -18,7 +18,7 @@ pontacc: $(OBJS)
 test/.build/%.exe: pontacc test/%.c
 	$(CC) -o- -E -P -C test/$*.c > $(TEST_BUILD_DATA)/$*.c.preprocessed
 	./pontacc -o $(TEST_BUILD_DATA)/$*.s $(TEST_BUILD_DATA)/$*.c.preprocessed
-	$(CC) -S -o $@.s $(TEST_BUILD_DATA)/$*.s -xc test/common
+	$(CC) -g -O0 -S -o $@.s $(TEST_BUILD_DATA)/$*.s -xc test/common
 	$(CC) -o $@ $(TEST_BUILD_DATA)/$*.s -xc test/common
 
 test: $(TESTS)
