@@ -5,7 +5,6 @@
 tmp*
 pontacc
 memo.md
-/test/*.exe
-*.tmp
 .build
 /debug.c
+memo.md
