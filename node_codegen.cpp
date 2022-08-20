@@ -176,7 +176,7 @@ void NodeDeref::generate(){
     if (is_type_of<TypeArray>(type)){
         return;
     }
-    if (size_of(var->get_type()) == 1) {
+    if (size_of(get_type()) == 1) {
         ass_mov_1_8("(%rax)", "%rax");
     }
     else {
