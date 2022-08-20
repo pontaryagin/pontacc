@@ -98,6 +98,7 @@ struct Token {
             case 'r':
                 return as_octal('\r');
             case 'e': return "\\033";
+            case '"': return "\\\"";
         }
         return string{c};
     }
