@@ -4,7 +4,8 @@ INCLUDES := $(wildcard *.h)
 CPP_FILES := $(wildcard *.cpp)
 
 TEST_SRCS=$(wildcard test/*.c)
-TESTS=$(TEST_SRCS:.c=.exe)
+TESTS=$(patsubst test/%.c, test/.build/%.exe, $(TEST_SRCS))
+TEST_BUILD_DATA=test/.build
 
 OBJS := $(patsubst %.cpp, %.o, $(CPP_FILES))
 
@@ -14,11 +15,11 @@ pontacc: $(OBJS)
 %.o: %.cpp $(INCLUDES)
 	$(CXX) $(CFLAGS) -Wall -Wextra -Wno-sign-compare -Wno-unused-function -o $@ -c $<
 
-test/%.exe: pontacc test/%.c
-	$(CC) -o- -E -P -C test/$*.c > test/$*.c.tmp
-	./pontacc -o test/$*.s test/$*.c.tmp
-	$(CC) -S -o $@.s test/$*.s -xc test/common
-	$(CC) -o $@ test/$*.s -xc test/common
+test/.build/%.exe: pontacc test/%.c
+	$(CC) -o- -E -P -C test/$*.c > $(TEST_BUILD_DATA)/$*.c.preprocessed
+	./pontacc -o $(TEST_BUILD_DATA)/$*.s $(TEST_BUILD_DATA)/$*.c.preprocessed
+	$(CC) -S -o $@.s $(TEST_BUILD_DATA)/$*.s -xc test/common
+	$(CC) -o $@ $(TEST_BUILD_DATA)/$*.s -xc test/common
 
 test: $(TESTS)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
