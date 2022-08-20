@@ -68,12 +68,12 @@ void NodeIf::generate(){
     ostr() << "cmp $0" << ", %rax" << endl;
     ostr() << "je " << ".L.else." << count_str << endl;
     statement_if->generate();
-    ostr() << "jmp " << ".L.end." << count_str << endl;
+    ostr() << "jmp " << ".L.endif." << count_str << endl;
     ass_label(".L.else." + count_str);
     if (statement_else){
         statement_else->generate();
     }
-    ass_label(".L.end." + count_str);
+    ass_label(".L.endif." + count_str);
 }
 
 void NodeFor::generate(){
@@ -87,11 +87,11 @@ void NodeFor::generate(){
         expr_condition->generate();
     }
     ostr() << "cmp $0" << ", %rax" << endl;
-    ostr() << "je " << ".L.end." + count_str << endl;
+    ostr() << "je " << ".L.endfor." + count_str << endl;
     statement->generate();
     expr_increment->generate();
     ostr() << "jmp " << ".L.for." + count_str << endl;
-    ass_label(".L.end." + count_str);
+    ass_label(".L.endfor." + count_str);
 }
 
 void NodeNum::generate(){
