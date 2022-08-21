@@ -310,7 +310,7 @@ void NodeDeclaration::generate(){
 void NodeFuncDef::generate(){
     gen_header(m_name);
     ostr() << m_name << ":\n";
-    ass_prologue(m_local_variable_num);
+    ass_prologue(m_stack_size);
     // load parameters from register
     for(int i = 0; i < m_param.size(); ++i)
     {

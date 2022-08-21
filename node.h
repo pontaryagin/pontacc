@@ -13,8 +13,9 @@ struct INode{
     }
     virtual optional<int> get_offset() const { return nullopt; }
     virtual optional<bool> is_global() const { return nullopt; }
-    virtual string ass_stack_reg() const { throw; };
+    virtual string ass_stack_reg() const { throw; }
     virtual ~INode() = default;
+    virtual void assign_stack_offset() const {}
 };
 
 using PINode = unique_ptr<INode>;
@@ -53,10 +54,11 @@ struct NodeVar: ITyped{
     int offset;
     Type m_type;
     bool m_is_global;
-    NodeVar(Token token, int offset, Type type, string name, bool is_global = false)
-        : token(move(token)), name(name), offset(offset), m_type(move(type)), m_is_global(is_global){}
-    NodeVar(const Token& token, int offset, Type type, bool is_global = false)
-        : NodeVar(token, offset, move(type), token.ident, is_global) {}
+    NodeVar* m_base = nullptr;
+    NodeVar(Token token, Type type, string name, bool is_global = false)
+        : token(move(token)), name(name), offset(), m_type(move(type)), m_is_global(is_global){}
+    NodeVar(const Token& token, Type type, bool is_global = false)
+        : NodeVar(token, move(type), token.ident, is_global) {}
     optional<int> get_offset() const override { return offset; }
     optional<bool> is_global() const override { return m_is_global; }
     string ass_stack_reg() const override;
@@ -64,6 +66,8 @@ struct NodeVar: ITyped{
     optional<Token> get_token() const override { return token; }
     void generate() override;
     void generate_address() const override;
+    // void assign_stack_offset(int offset) const override {
+    // }
 };
 
 // GNU extension
@@ -228,11 +232,12 @@ struct NodeFuncDef: INode{
     string m_name;
     PINode m_statement;
     Type m_type;
-    int m_local_variable_num;
     vector<unique_ptr<NodeVar>> m_param;
+    int m_stack_size = 0;
     
-    NodeFuncDef(const Token& token, string name, PINode statement, Type m_type, int local_variable_num, decltype(m_param) param)
-        : token(token), m_name(move(name)), m_statement(move(statement)), m_type(m_type), m_local_variable_num(local_variable_num), m_param(move(param)){}
+    NodeFuncDef(const Token& token, string name, PINode statement, Type m_type, decltype(m_param) param, int stack_size)
+        : token(token), m_name(move(name)), m_statement(move(statement)), m_type(m_type), 
+        m_param(move(param)), m_stack_size(stack_size){}
     optional<Token> get_token() const override { return token; }
     void generate() override;
 };

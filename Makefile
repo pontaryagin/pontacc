@@ -22,6 +22,7 @@ test/.build/%.exe: pontacc test/%.c
 	$(CC) -o $@ $(TEST_BUILD_DATA)/$*.s -xc test/common
 
 test: $(TESTS)
+	mkdir -p $(TEST_BUILD_DATA)
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 	test/driver.sh
 

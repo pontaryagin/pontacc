@@ -4,9 +4,8 @@
 
 class Context {
     string m_func_name;
-    shared_ptr<int> m_idents_index_max
-        = make_shared<int>();
-    map<string, int> m_idents_offset;
+    shared_ptr<vector<reference_wrapper<NodeVar>>> m_locals
+        = make_shared<vector<reference_wrapper<NodeVar>>>();
     map<string, Type> m_var_types;
     shared_ptr<map<string, Type>> m_var_types_global
         = make_shared<map<string, Type>>();
@@ -17,8 +16,7 @@ public:
     Context() = default;
     Context(Context* parent_context) : 
         m_func_name(parent_context->m_func_name),
-        m_idents_index_max(parent_context->m_idents_index_max),
-        m_idents_offset(),
+        m_locals(parent_context->m_locals),
         m_var_types(),
         m_var_types_global(parent_context->m_var_types_global),
         m_string_literal(parent_context->m_string_literal),
@@ -40,7 +38,9 @@ private:
         return nullopt;
     }
 public:
-    int variable_offset(const Token& token);
+    vector<reference_wrapper<NodeVar>>& locals() {return *m_locals;};
+    void set_locals(shared_ptr<vector<reference_wrapper<NodeVar>>> locals_in) { m_locals = move(locals_in);};
+    // int variable_offset(const Token& token);
     optref<const Type> variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
@@ -65,9 +65,9 @@ public:
     const string& func_name() const{
         return m_func_name;
     }
-    int idents_index_max() const{
-        return *m_idents_index_max;
-    }
+    // int idents_index_max() const{
+    //     return *m_idents_index_max;
+    // }
     const map<string, shared_ptr<const string>>& string_literal(){
         return *m_string_literal;
     }

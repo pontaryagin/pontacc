@@ -1,19 +1,19 @@
 #include "tokenizer.h"
 #include "parser.h"
 
-int Context::variable_offset(const Token& token)
-{
-    if (m_idents_offset.contains(token.ident)){
-        return m_idents_offset[token.ident];
-    }
-    if (m_parent_context && !m_var_types.contains(token.ident)){
-        return m_parent_context->variable_offset(token);
-    }
-    auto type = variable_type(token.ident);
-    auto size = visit([](auto&& t){return t->size_of(); }, type->get());
-    *m_idents_index_max += size;
-    return m_idents_offset[token.ident] = *m_idents_index_max;
-}
+// int Context::variable_offset(const Token& token)
+// {
+//     if (m_idents_offset.contains(token.ident)){
+//         return m_idents_offset[token.ident];
+//     }
+//     if (m_parent_context && !m_var_types.contains(token.ident)){
+//         return m_parent_context->variable_offset(token);
+//     }
+//     auto type = variable_type(token.ident);
+//     auto size = visit([](auto&& t){return t->size_of(); }, type->get());
+//     *m_idents_index_max += size;
+//     return m_idents_offset[token.ident] = *m_idents_index_max;
+// }
 
 static string get_global_string_id(){
     static int num = 0;
@@ -120,7 +120,8 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
     context.set_variable_type(var_name.ident, is_global, type);
-    auto var = make_unique<NodeVar>(var_name, context.variable_offset(var_name), type, is_global);
+    auto var = make_unique<NodeVar>(var_name, type, is_global);
+    context.locals().emplace_back(ref(*var));
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
     }
@@ -205,15 +206,18 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         }
         auto is_global = context.variable_type(token.ident, true).has_value();
         assert_at(context.variable_type(token.ident).has_value(), token, "unknown variable");
-        return {make_unique<NodeVar>(token, context.variable_offset(token), 
-            context.variable_type(token.ident, is_global)->get(), is_global), pos+1};
+        auto var = make_unique<NodeVar>(token, 
+            context.variable_type(token.ident, is_global)->get(), is_global);
+        context.locals().emplace_back(*var);
+        return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::String)) {
         auto name = get_global_string_id();
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
         context.set_variable_type(name, true, type);
-        auto var = make_unique<NodeVar>(token, 0, type, name, true);
+        auto var = make_unique<NodeVar>(token, type, name, true);
+        context.locals().emplace_back(*var);
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::Num)) {
@@ -396,8 +400,15 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
         std::vector<std::unique_ptr<NodeVar>> &&param, Context& context){
     expect_punct(tokens, pos, "{");
     auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
+    // assign stack offset
+    int offset = 0;
+    for(NodeVar& local : context.locals() | views::reverse){
+        offset += size_of(local.get_type());
+        local.offset = offset;
+    }
+    offset = round_up(offset, 16);
     return {make_unique<NodeFuncDef>(tokens.at(pos), node.name, move(state), node.get_type(), 
-            context.idents_index_max(), move(param)), pos_state};
+            move(param), offset), pos_state};
 }
 
 
@@ -409,6 +420,7 @@ PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
     PINode node;
     while(pos < tokens.size()){
         Context context(&context_main);
+        context.set_locals(make_shared<std::vector<std::reference_wrapper<NodeVar>>>());
         auto [type, pos1] = try_parse_declspec(tokens, pos);
         auto [node_, param, pos2] = parse_declarator(tokens, pos1, *type, true, context);
         type = node_->get_type();
