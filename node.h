@@ -51,14 +51,14 @@ struct NodeNum: ITyped{
 struct NodeVar: ITyped{
     Token token;
     string name;
-    int offset;
+    int offset = -1;
     Type m_type;
     bool m_is_global;
     NodeVar* m_base = nullptr;
-    NodeVar(Token token, Type type, string name, bool is_global = false)
-        : token(move(token)), name(name), offset(), m_type(move(type)), m_is_global(is_global){}
-    NodeVar(const Token& token, Type type, bool is_global = false)
-        : NodeVar(token, move(type), token.ident, is_global) {}
+    NodeVar(Token token, Type type, string name, bool is_global = false, NodeVar* base = nullptr)
+        : token(move(token)), name(name), m_type(move(type)), m_is_global(is_global), m_base(base){}
+    NodeVar(const Token& token, Type type, bool is_global = false, NodeVar* base = nullptr)
+        : NodeVar(token, move(type), token.ident, is_global, base) {}
     optional<int> get_offset() const override { return offset; }
     optional<bool> is_global() const override { return m_is_global; }
     string ass_stack_reg() const override;

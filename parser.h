@@ -6,9 +6,9 @@ class Context {
     string m_func_name;
     shared_ptr<vector<reference_wrapper<NodeVar>>> m_locals
         = make_shared<vector<reference_wrapper<NodeVar>>>();
-    map<string, Type> m_var_types;
-    shared_ptr<map<string, Type>> m_var_types_global
-        = make_shared<map<string, Type>>();
+    map<string, NodeVar*> m_var_types;
+    shared_ptr<map<string, NodeVar*>> m_var_types_global
+        = make_shared<map<string, NodeVar*>>();
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context;
@@ -23,32 +23,32 @@ public:
         m_parent_context(parent_context)
         {}
 private:
-    optref<const Type> global(const string& name) const{
+    NodeVar* global(const string& name) const{
         auto it = m_var_types_global->find(name);
-        return it == m_var_types_global->end() ? nullopt : optref<const Type>(it->second);
+        return it == m_var_types_global->end() ? nullptr : it->second;
     }
-    optref<const Type> local(const string& name) const{
+    NodeVar* local(const string& name) const{
         auto it = m_var_types.find(name);
         if (it != m_var_types.end()){
-            return optref<const Type>(it->second);
+            return it->second;
         }
         if (m_parent_context){
             return m_parent_context->local(name);
         }
-        return nullopt;
+        return nullptr;
     }
 public:
     vector<reference_wrapper<NodeVar>>& locals() {return *m_locals;};
     void set_locals(shared_ptr<vector<reference_wrapper<NodeVar>>> locals_in) { m_locals = move(locals_in);};
     // int variable_offset(const Token& token);
-    optref<const Type> variable_type(const string& name, bool is_global) const{
+    NodeVar* variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
-    optref<const Type> variable_type(const string& name) const{
+    NodeVar* variable_type(const string& name) const{
         const auto& l = local(name);
         return l ? l : global(name);
     }
-    void set_variable_type(const string& name, bool is_global, Type type){
+    void set_variable_type(const string& name, bool is_global, NodeVar* type){
         if (is_global){
             (*m_var_types_global)[name] = move(type);
         }

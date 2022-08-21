@@ -119,8 +119,8 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     auto var_name = tokens.at(pos);
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
-    context.set_variable_type(var_name.ident, is_global, type);
     auto var = make_unique<NodeVar>(var_name, type, is_global);
+    context.set_variable_type(var_name.ident, is_global, var.get());
     context.locals().emplace_back(ref(*var));
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
@@ -204,19 +204,30 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         if (is_punct(tokens, pos+1, "(")){
             return parse_func(tokens, pos, context);
         }
-        auto is_global = context.variable_type(token.ident, true).has_value();
-        assert_at(context.variable_type(token.ident).has_value(), token, "unknown variable");
-        auto var = make_unique<NodeVar>(token, 
-            context.variable_type(token.ident, is_global)->get(), is_global);
-        context.locals().emplace_back(*var);
+        auto is_global = context.variable_type(token.ident, true) != nullptr;
+        assert_at(context.variable_type(token.ident) != nullptr, token, "unknown variable");
+        auto tmp_var = context.variable_type(token.ident, is_global);
+        PITyped var;
+        if(tmp_var){
+            auto var_ = make_unique<NodeVar>(*tmp_var);
+            var_->m_base = tmp_var;
+            context.locals().emplace_back(*var_);
+            var = move(var_); 
+        }
+        else {
+            auto var_ = make_unique<NodeVar>(token, Type{}, is_global);
+            context.locals().emplace_back(*var_);
+            context.set_variable_type(var_->name, is_global, var_.get());
+            var = move(var_);
+        }
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::String)) {
         auto name = get_global_string_id();
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
-        context.set_variable_type(name, true, type);
         auto var = make_unique<NodeVar>(token, type, name, true);
+        context.set_variable_type(name, true, var.get());
         context.locals().emplace_back(*var);
         return {move(var), pos+1};
     }
@@ -403,8 +414,15 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
     // assign stack offset
     int offset = 0;
     for(NodeVar& local : context.locals() | views::reverse){
-        offset += size_of(local.get_type());
-        local.offset = offset;
+        auto this_size = size_of(local.get_type());
+        if (local.offset < 0)
+            continue;
+        offset += this_size;
+        auto local_ = &local;
+        do{
+            local_->offset = offset;
+            local_ = local_->m_base;
+        }while(local_ != nullptr);
     }
     offset = round_up(offset, 16);
     return {make_unique<NodeFuncDef>(tokens.at(pos), node.name, move(state), node.get_type(), 
