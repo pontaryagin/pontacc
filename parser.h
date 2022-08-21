@@ -4,7 +4,8 @@
 
 class Context {
     string m_func_name;
-    int m_idents_index_max;
+    shared_ptr<int> m_idents_index_max
+        = make_shared<int>();
     map<string, int> m_idents_offset;
     map<string, Type> m_var_types;
     shared_ptr<map<string, Type>> m_var_types_global
@@ -65,7 +66,7 @@ public:
         return m_func_name;
     }
     int idents_index_max() const{
-        return m_idents_index_max;
+        return *m_idents_index_max;
     }
     const map<string, shared_ptr<const string>>& string_literal(){
         return *m_string_literal;

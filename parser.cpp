@@ -11,8 +11,8 @@ int Context::variable_offset(const Token& token)
     }
     auto type = variable_type(token.ident);
     auto size = visit([](auto&& t){return t->size_of(); }, type->get());
-    m_idents_index_max += size;
-    return m_idents_offset[token.ident] = m_idents_index_max;
+    *m_idents_index_max += size;
+    return m_idents_offset[token.ident] = *m_idents_index_max;
 }
 
 static string get_global_string_id(){
