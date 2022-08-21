@@ -415,7 +415,7 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
     int offset = 0;
     for(NodeVar& local : context.locals() | views::reverse){
         auto this_size = size_of(local.get_type());
-        if (local.offset < 0)
+        if (local.offset >= 0)
             continue;
         offset += this_size;
         auto local_ = &local;
