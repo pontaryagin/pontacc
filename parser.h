@@ -6,8 +6,8 @@ class Context {
     string m_func_name;
     shared_ptr<vector<PNodeVar>> m_locals
         = make_shared<vector<PNodeVar>>();
-    map<string, PNodeVar> m_var_types;
-    shared_ptr<map<string, PNodeVar>> m_var_types_global
+    map<string, PNodeVar> m_var;
+    shared_ptr<map<string, PNodeVar>> m_var_global
         = make_shared<map<string, PNodeVar>>();
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
@@ -17,19 +17,19 @@ public:
     Context(Context* parent_context) : 
         m_func_name(parent_context->m_func_name),
         m_locals(parent_context->m_locals),
-        m_var_types(),
-        m_var_types_global(parent_context->m_var_types_global),
+        m_var(),
+        m_var_global(parent_context->m_var_global),
         m_string_literal(parent_context->m_string_literal),
         m_parent_context(parent_context)
         {}
 private:
     PNodeVar global(const string& name) const{
-        auto it = m_var_types_global->find(name);
-        return it == m_var_types_global->end() ? nullptr : it->second;
+        auto it = m_var_global->find(name);
+        return it == m_var_global->end() ? nullptr : it->second;
     }
     PNodeVar local(const string& name) const{
-        auto it = m_var_types.find(name);
-        if (it != m_var_types.end()){
+        auto it = m_var.find(name);
+        if (it != m_var.end()){
             return it->second;
         }
         if (m_parent_context){
@@ -55,13 +55,15 @@ public:
         const auto& l = local(name);
         return l ? l : global(name);
     }
-    void set_variable_type(const string& name, bool is_global, PNodeVar type){
+    void set_variable_type(bool is_global, PNodeVar type){
+        const string& name = type->name;
         if (is_global){
-            (*m_var_types_global)[name] = move(type);
+            (*m_var_global)[name] = type;
         }
         else {
-            m_var_types[name] = move(type);
+            m_var[name] = type;
         }
+        add_locals(type);
     }
     void string_literal(const string& name, shared_ptr<const string> val){
         m_string_literal->emplace(name, move(val));
@@ -72,9 +74,6 @@ public:
     const string& func_name() const{
         return m_func_name;
     }
-    // int idents_index_max() const{
-    //     return *m_idents_index_max;
-    // }
     const map<string, shared_ptr<const string>>& string_literal(){
         return *m_string_literal;
     }

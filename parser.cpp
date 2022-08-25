@@ -106,8 +106,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
     auto var = make_shared<NodeVar>(var_name, type, is_global);
-    context.set_variable_type(var_name.ident, is_global, var);
-    context.add_locals(var);
+    context.set_variable_type(is_global, var);
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
     }
@@ -202,8 +201,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         }
         else {
             auto var_ = make_shared<NodeVar>(token, Type{}, is_global);
-            context.add_locals(var_);
-            context.set_variable_type(var_->name, is_global, var_);
+            context.set_variable_type(is_global, var_);
             var = move(var_);
         }
         return {move(var), pos+1};
@@ -213,8 +211,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
         auto var = make_shared<NodeVar>(token, type, name, true);
-        context.set_variable_type(name, true, var);
-        context.add_locals(var);
+        context.set_variable_type(true, var);
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::Num)) {
