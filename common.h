@@ -5,6 +5,10 @@ using namespace std;
 
 // Reports an error location and exit.
 inline void verror_at(string_view current_input, int pos, string_view fmt, bool next=false) {
+    auto eol = current_input.find("\n");
+    if (eol != std::string_view::npos){
+        current_input = current_input.substr(0, eol);
+    }
     cerr << current_input << endl;
     for (int i = 0; i < pos + (next ? 1: 0); ++i){
         cerr << " "; // print pos spaces.

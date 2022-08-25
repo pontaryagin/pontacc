@@ -32,8 +32,12 @@ struct Token {
     TokenKind kind;
     // info 
     string_view statement;
+    string_view m_curr_line;
     int loc; // Token location
     int len;   // Token length
+    int m_line_no;
+    int m_line_pos;
+
     Token () = default;
 
     int from_num(string_view statement) {
@@ -114,7 +118,7 @@ struct Token {
             auto curr_char = statement[pos];
             auto prev_char = statement[pos-1];
             if (curr_char == '\n'){
-                verror_at(statement, loc, "\" did not closed.\n");
+                verror_at(m_curr_line, m_line_pos, "\" did not closed.\n");
             }
             else if (curr_char == '\\'){
                 continue;
@@ -135,15 +139,15 @@ struct Token {
                 res.push_back(curr_char);
             }
         }
-        verror_at(statement, loc, "\" did not closed.\n"); abort();
+        verror_at(m_curr_line, m_line_pos, "\" did not closed.\n"); abort();
     }
 
-    Token(string_view statement, int& pos)
-        : statement(statement), loc(pos)
+    Token(string_view statement, string_view curr_line, int& pos, int line_no, int line_pos)
+        : statement(statement), m_curr_line(curr_line), loc(pos), m_line_no(line_no), m_line_pos(line_pos)
     {
         auto curr = statement.substr(pos);
         if (curr.size() == 0){
-            verror_at(statement, loc, "Fail to tokenize at the end of statement\n");
+            verror_at(m_curr_line, m_line_pos, "Fail to tokenize at the end of statement\n");
         }
         for (auto op : {"<=", ">=", "==", "!=", "+", "-", "*", "/", "(", ")", "<", ">", "=", ";", "{", "}", "&",",", "[", "]"}){
             if (curr.starts_with(op)){
@@ -163,7 +167,7 @@ struct Token {
             pos += len;
             return;
         }
-        verror_at(statement, loc, "Unknown operator\n");
+        verror_at(m_curr_line, m_line_pos, "Unknown operator\n");
     }
 };
 
@@ -172,7 +176,14 @@ using Tokens = vector<Token>;
 inline Tokens tokenize(string_view text){
     Tokens tokens;
     int p = 0;
+    int curr_line_no = 1;
+    int curr_pos = -1;
     while(p < text.size()){
+        ++curr_pos;
+        if (text[p] == '\n'){
+            curr_pos = -1;
+            ++curr_line_no;
+        }
         if (text.substr(p).starts_with("//")){
             while(text.at(p) != '\n' || p == text.size()){
                 ++p;
@@ -191,7 +202,7 @@ inline Tokens tokenize(string_view text){
             continue;
         }
         else {
-            tokens.emplace_back(text, p);
+            tokens.emplace_back(text, text.substr(p - curr_pos), p, curr_line_no, curr_pos);
         }
     }
     return tokens;
@@ -200,7 +211,7 @@ inline Tokens tokenize(string_view text){
 
 inline void verror_at(optional<Token> token, string_view fmt, bool next=false){
     if(token){
-        verror_at(token->statement, token->loc, fmt, next);
+        verror_at(token->m_curr_line, token->m_line_pos, fmt, next);
     }
     else{
         verror_at("", 0, fmt, false);
