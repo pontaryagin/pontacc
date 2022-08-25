@@ -4,11 +4,11 @@
 
 class Context {
     string m_func_name;
-    int m_idents_index_max;
-    map<string, int> m_idents_offset;
-    map<string, Type> m_var_types;
-    shared_ptr<map<string, Type>> m_var_types_global
-        = make_shared<map<string, Type>>();
+    shared_ptr<vector<PNodeVar>> m_locals
+        = make_shared<vector<PNodeVar>>();
+    map<string, PNodeVar> m_var;
+    shared_ptr<map<string, PNodeVar>> m_var_global
+        = make_shared<map<string, PNodeVar>>();
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context;
@@ -16,44 +16,54 @@ public:
     Context() = default;
     Context(Context* parent_context) : 
         m_func_name(parent_context->m_func_name),
-        m_idents_index_max(parent_context->m_idents_index_max),
-        m_idents_offset(),
-        m_var_types(),
-        m_var_types_global(parent_context->m_var_types_global),
+        m_locals(parent_context->m_locals),
+        m_var(),
+        m_var_global(parent_context->m_var_global),
         m_string_literal(parent_context->m_string_literal),
         m_parent_context(parent_context)
         {}
 private:
-    optref<const Type> global(const string& name) const{
-        auto it = m_var_types_global->find(name);
-        return it == m_var_types_global->end() ? nullopt : optref<const Type>(it->second);
+    PNodeVar global(const string& name) const{
+        auto it = m_var_global->find(name);
+        return it == m_var_global->end() ? nullptr : it->second;
     }
-    optref<const Type> local(const string& name) const{
-        auto it = m_var_types.find(name);
-        if (it != m_var_types.end()){
-            return optref<const Type>(it->second);
+    PNodeVar local(const string& name) const{
+        auto it = m_var.find(name);
+        if (it != m_var.end()){
+            return it->second;
         }
         if (m_parent_context){
             return m_parent_context->local(name);
         }
-        return nullopt;
+        return nullptr;
     }
 public:
-    int variable_offset(const Token& token);
-    optref<const Type> variable_type(const string& name, bool is_global) const{
+    const auto& locals() {return *m_locals;}
+    void add_locals(PNodeVar lvar) { 
+        for (auto l : *m_locals){
+            if (l == lvar){
+                throw;
+            }
+        }
+        m_locals->emplace_back(lvar);
+    }
+    void reset_locals() { m_locals = make_shared<vector<PNodeVar>>();}
+    PNodeVar variable(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
-    optref<const Type> variable_type(const string& name) const{
+    PNodeVar variable(const string& name) const{
         const auto& l = local(name);
         return l ? l : global(name);
     }
-    void set_variable_type(const string& name, bool is_global, Type type){
+    void set_variable(bool is_global, PNodeVar type){
+        const string& name = type->name;
         if (is_global){
-            (*m_var_types_global)[name] = move(type);
+            (*m_var_global)[name] = type;
         }
         else {
-            m_var_types[name] = move(type);
+            m_var[name] = type;
         }
+        add_locals(type);
     }
     void string_literal(const string& name, shared_ptr<const string> val){
         m_string_literal->emplace(name, move(val));
@@ -63,9 +73,6 @@ public:
     }
     const string& func_name() const{
         return m_func_name;
-    }
-    int idents_index_max() const{
-        return m_idents_index_max;
     }
     const map<string, shared_ptr<const string>>& string_literal(){
         return *m_string_literal;
@@ -123,7 +130,7 @@ PosRet<PITyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& 
 
 PosRet<optional<Type>> try_parse_declspec(const vector<Token>& tokens, int pos);
 
-PosRet<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>>
+PosRet<PNodeVar, vector<PNodeVar>>
 parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context);
 
 PosRet<PINode> parse_initializer(const vector<Token>& tokens, int pos, Type type);

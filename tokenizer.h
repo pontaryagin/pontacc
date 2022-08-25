@@ -98,6 +98,7 @@ struct Token {
             case 'r':
                 return as_octal('\r');
             case 'e': return "\\033";
+            case '"': return "\\\"";
         }
         return string{c};
     }
@@ -115,10 +116,6 @@ struct Token {
             if (curr_char == '\n'){
                 verror_at(statement, loc, "\" did not closed.\n");
             }
-            else if (curr_char == '"'){
-                text = make_shared<string>(move(res));
-                return len = pos+1;
-            }
             else if (curr_char == '\\'){
                 continue;
             }
@@ -129,6 +126,10 @@ struct Token {
                 else {
                     res += read_escaped_char(curr_char);
                 }
+            }
+            else if (curr_char == '"'){
+                text = make_shared<string>(move(res));
+                return len = pos+1;
             }
             else {
                 res.push_back(curr_char);

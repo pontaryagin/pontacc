@@ -5,3 +5,6 @@
 tmp*
 pontacc
 memo.md
+.build
+/debug.c
+memo.md

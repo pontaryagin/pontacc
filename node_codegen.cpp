@@ -68,12 +68,12 @@ void NodeIf::generate(){
     ostr() << "cmp $0" << ", %rax" << endl;
     ostr() << "je " << ".L.else." << count_str << endl;
     statement_if->generate();
-    ostr() << "jmp " << ".L.end." << count_str << endl;
+    ostr() << "jmp " << ".L.endif." << count_str << endl;
     ass_label(".L.else." + count_str);
     if (statement_else){
         statement_else->generate();
     }
-    ass_label(".L.end." + count_str);
+    ass_label(".L.endif." + count_str);
 }
 
 void NodeFor::generate(){
@@ -87,11 +87,11 @@ void NodeFor::generate(){
         expr_condition->generate();
     }
     ostr() << "cmp $0" << ", %rax" << endl;
-    ostr() << "je " << ".L.end." + count_str << endl;
+    ostr() << "je " << ".L.endfor." + count_str << endl;
     statement->generate();
     expr_increment->generate();
     ostr() << "jmp " << ".L.for." + count_str << endl;
-    ass_label(".L.end." + count_str);
+    ass_label(".L.endfor." + count_str);
 }
 
 void NodeNum::generate(){
@@ -157,7 +157,7 @@ void NodeFunc::generate(){
     }
     for (int i = ssize(m_nodes)-1; i >= 0 ; --i) {
         if (size_of(m_nodes[i]->get_type()) == 1){
-            ass_pop(call_reg_names_1[i]);
+            ass_pop(call_reg_names_8[i]);
         }
         else {
             ass_pop(call_reg_names_8[i]);
@@ -176,7 +176,7 @@ void NodeDeref::generate(){
     if (is_type_of<TypeArray>(type)){
         return;
     }
-    if (size_of(var->get_type()) == 1) {
+    if (size_of(get_type()) == 1) {
         ass_mov_1_8("(%rax)", "%rax");
     }
     else {
@@ -310,7 +310,7 @@ void NodeDeclaration::generate(){
 void NodeFuncDef::generate(){
     gen_header(m_name);
     ostr() << m_name << ":\n";
-    ass_prologue(m_local_variable_num);
+    ass_prologue(m_stack_size);
     // load parameters from register
     for(int i = 0; i < m_param.size(); ++i)
     {
