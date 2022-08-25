@@ -106,7 +106,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
     auto var = make_shared<NodeVar>(var_name, type, is_global);
-    context.set_variable_type(is_global, var);
+    context.set_variable(is_global, var);
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
     }
@@ -189,9 +189,9 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         if (is_punct(tokens, pos+1, "(")){
             return parse_func(tokens, pos, context);
         }
-        auto is_global = context.variable_type(token.ident, true) != nullptr;
-        assert_at(context.variable_type(token.ident) != nullptr, token, "unknown variable");
-        auto tmp_var = context.variable_type(token.ident, is_global);
+        auto is_global = context.variable(token.ident, true) != nullptr;
+        assert_at(context.variable(token.ident) != nullptr, token, "unknown variable");
+        auto tmp_var = context.variable(token.ident, is_global);
         PITyped var;
         if(tmp_var){
             auto var_ = make_shared<NodeVar>(NodeVar(*tmp_var));
@@ -201,7 +201,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         }
         else {
             auto var_ = make_shared<NodeVar>(token, Type{}, is_global);
-            context.set_variable_type(is_global, var_);
+            context.set_variable(is_global, var_);
             var = move(var_);
         }
         return {move(var), pos+1};
@@ -211,7 +211,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
         auto var = make_shared<NodeVar>(token, type, name, true);
-        context.set_variable_type(true, var);
+        context.set_variable(true, var);
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::Num)) {

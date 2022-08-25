@@ -48,14 +48,14 @@ public:
         m_locals->emplace_back(lvar);
     }
     void reset_locals() { m_locals = make_shared<vector<PNodeVar>>();}
-    PNodeVar variable_type(const string& name, bool is_global) const{
+    PNodeVar variable(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
-    PNodeVar variable_type(const string& name) const{
+    PNodeVar variable(const string& name) const{
         const auto& l = local(name);
         return l ? l : global(name);
     }
-    void set_variable_type(bool is_global, PNodeVar type){
+    void set_variable(bool is_global, PNodeVar type){
         const string& name = type->name;
         if (is_global){
             (*m_var_global)[name] = type;
