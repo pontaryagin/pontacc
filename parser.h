@@ -4,11 +4,11 @@
 
 class Context {
     string m_func_name;
-    shared_ptr<vector<NodeVar*>> m_locals
-        = make_shared<vector<NodeVar*>>();
-    map<string, NodeVar*> m_var_types;
-    shared_ptr<map<string, NodeVar*>> m_var_types_global
-        = make_shared<map<string, NodeVar*>>();
+    shared_ptr<vector<PNodeVar>> m_locals
+        = make_shared<vector<PNodeVar>>();
+    map<string, PNodeVar> m_var_types;
+    shared_ptr<map<string, PNodeVar>> m_var_types_global
+        = make_shared<map<string, PNodeVar>>();
     shared_ptr<map<string, shared_ptr<const string>>> m_string_literal 
         = make_shared<map<string, shared_ptr<const string>>>();
     Context* m_parent_context;
@@ -23,11 +23,11 @@ public:
         m_parent_context(parent_context)
         {}
 private:
-    NodeVar* global(const string& name) const{
+    PNodeVar global(const string& name) const{
         auto it = m_var_types_global->find(name);
         return it == m_var_types_global->end() ? nullptr : it->second;
     }
-    NodeVar* local(const string& name) const{
+    PNodeVar local(const string& name) const{
         auto it = m_var_types.find(name);
         if (it != m_var_types.end()){
             return it->second;
@@ -39,7 +39,7 @@ private:
     }
 public:
     const auto& locals() {return *m_locals;}
-    void add_locals(NodeVar* lvar) { 
+    void add_locals(PNodeVar lvar) { 
         for (auto l : *m_locals){
             if (l == lvar){
                 throw;
@@ -47,15 +47,15 @@ public:
         }
         m_locals->emplace_back(lvar);
     }
-    void reset_locals() { m_locals = make_shared<vector<NodeVar*>>();}
-    NodeVar* variable_type(const string& name, bool is_global) const{
+    void reset_locals() { m_locals = make_shared<vector<PNodeVar>>();}
+    PNodeVar variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
-    NodeVar* variable_type(const string& name) const{
+    PNodeVar variable_type(const string& name) const{
         const auto& l = local(name);
         return l ? l : global(name);
     }
-    void set_variable_type(const string& name, bool is_global, NodeVar* type){
+    void set_variable_type(const string& name, bool is_global, PNodeVar type){
         if (is_global){
             (*m_var_types_global)[name] = move(type);
         }
@@ -131,7 +131,7 @@ PosRet<PITyped> parse_expr(const vector<Token>& tokens, int start_pos, Context& 
 
 PosRet<optional<Type>> try_parse_declspec(const vector<Token>& tokens, int pos);
 
-PosRet<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>>
+PosRet<PNodeVar, vector<PNodeVar>>
 parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context);
 
 PosRet<PINode> parse_initializer(const vector<Token>& tokens, int pos, Type type);

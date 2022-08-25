@@ -36,7 +36,7 @@ PosRet<optional<Type>> try_parse_declspec(const vector<Token>& tokens, int pos) 
 }
 
 // param       = declspec declarator
-optional<PosRet<unique_ptr<NodeVar>>> try_parse_param(const vector<Token>& tokens, int pos, Context& context){
+optional<PosRet<PNodeVar>> try_parse_param(const vector<Token>& tokens, int pos, Context& context){
     auto [type, pos1] = try_parse_declspec(tokens, pos);
     if (!type) {
         return nullopt;
@@ -48,8 +48,8 @@ optional<PosRet<unique_ptr<NodeVar>>> try_parse_param(const vector<Token>& token
 
 // type-suffix = func-params? ")"
 // func-params = param ("," param)*
-PosRet<vector<unique_ptr<NodeVar>>> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
-    vector<unique_ptr<NodeVar>> params;
+PosRet<vector<PNodeVar>> parse_func_suffix(const vector<Token>& tokens, int pos, Context& context){
+    vector<PNodeVar> params;
     while(auto ret = try_parse_param(tokens, pos, context)){
         auto&& [param, pos1] = *ret;
         pos = pos1;
@@ -67,7 +67,7 @@ PosRet<vector<unique_ptr<NodeVar>>> parse_func_suffix(const vector<Token>& token
 //                | "[" num "]" (type-suffix)?
 //                | ε
 static
-PosRet<optional<vector<unique_ptr<NodeVar>>>> 
+PosRet<optional<vector<PNodeVar>>> 
 parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& type)
 {
     if (is_punct(tokens, pos, "(")) {
@@ -95,7 +95,7 @@ parse_type_suffix(const vector<Token>& tokens, int pos, Context& context, Type& 
 }
 
 // declarator = "*"* ident type-suffix
-PosRet<unique_ptr<NodeVar>, vector<unique_ptr<NodeVar>>>
+PosRet<PNodeVar, vector<PNodeVar>>
 parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global, Context& context){
     while(is_punct(tokens, pos, "*")){
         ++pos;
@@ -105,13 +105,13 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     auto var_name = tokens.at(pos);
     pos++;
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
-    auto var = make_unique<NodeVar>(var_name, type, is_global);
-    context.set_variable_type(var_name.ident, is_global, var.get());
-    context.add_locals(var.get());
+    auto var = make_shared<NodeVar>(var_name, type, is_global);
+    context.set_variable_type(var_name.ident, is_global, var);
+    context.add_locals(var);
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
     }
-    return {move(var), vector<unique_ptr<NodeVar>>{}, pos1};
+    return {move(var), vector<PNodeVar>{}, pos1};
 }
 
 // initializer = declarator ("=" expr)?
@@ -195,15 +195,15 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto tmp_var = context.variable_type(token.ident, is_global);
         PITyped var;
         if(tmp_var){
-            auto var_ = make_unique<NodeVar>(NodeVar(*tmp_var));
+            auto var_ = make_shared<NodeVar>(NodeVar(*tmp_var));
             var_->m_base = tmp_var;
-            context.add_locals(var_.get());
+            context.add_locals(var_);
             var = move(var_); 
         }
         else {
-            auto var_ = make_unique<NodeVar>(token, Type{}, is_global);
-            context.add_locals(var_.get());
-            context.set_variable_type(var_->name, is_global, var_.get());
+            auto var_ = make_shared<NodeVar>(token, Type{}, is_global);
+            context.add_locals(var_);
+            context.set_variable_type(var_->name, is_global, var_);
             var = move(var_);
         }
         return {move(var), pos+1};
@@ -212,9 +212,9 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto name = get_global_string_id();
         auto type = TypeArray{make_shared<Type>(TypeChar{}), static_cast<int>(token.text->size())+1};
         context.string_literal(name, token.text);
-        auto var = make_unique<NodeVar>(token, type, name, true);
-        context.set_variable_type(name, true, var.get());
-        context.add_locals(var.get());
+        auto var = make_shared<NodeVar>(token, type, name, true);
+        context.set_variable_type(name, true, var);
+        context.add_locals(var);
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::Num)) {
@@ -394,12 +394,12 @@ PosRet<PINode> parse_statement(const vector<Token>& tokens, int pos, Context& co
 // func_def = "{" compound-statement
 PosRet<PINode> 
 parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node, 
-        std::vector<std::unique_ptr<NodeVar>> &&param, Context& context){
+        std::vector<PNodeVar> &&param, Context& context){
     expect_punct(tokens, pos, "{");
     auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
     // assign stack offset
     int offset = 0;
-    for(NodeVar* local : context.locals()){
+    for(PNodeVar local : context.locals()){
         auto this_size = size_of(local->get_type());
         if (local->m_base){
             local->offset = local->m_base->offset;
@@ -409,7 +409,7 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
             offset += this_size;
         }
     }
-    for(NodeVar* local : context.locals()){
+    for(PNodeVar local : context.locals()){
         local->offset = offset-local->offset;
     }
     offset = round_up(offset, 16);
@@ -437,11 +437,11 @@ PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
         }
         else {
             pos = pos2;
-            nodes.push_back(PINode(node_.release()));
+            nodes.push_back(node_);
             while (is_punct(tokens, pos, ",")){
                 auto [node_, param, pos2] = parse_declarator(tokens, pos+1, *type, true, context);
                 pos = pos2;
-                nodes.push_back(PINode(node_.release()));
+                nodes.push_back(node_);
             }
             expect_punct(tokens, pos, ";");
             pos++;

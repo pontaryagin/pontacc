@@ -4,6 +4,8 @@
 #include "type.h"
 #include "tokenizer.h"
 
+using PNodeVar = shared_ptr<struct NodeVar>;
+
 struct INode{
     virtual optional<Token> get_token() const {return nullopt; };
     virtual void generate() = 0;
@@ -18,14 +20,14 @@ struct INode{
     virtual void assign_stack_offset() const {}
 };
 
-using PINode = unique_ptr<INode>;
+using PINode = shared_ptr<INode>;
 
 struct ITyped: virtual INode {
     virtual Type get_type() const = 0;
     virtual ~ITyped() = default;
 };
 
-using PITyped = unique_ptr<ITyped>;
+using PITyped = shared_ptr<ITyped>;
 
 void generate_main(const PINode& node);
 
@@ -54,10 +56,10 @@ struct NodeVar: ITyped{
     int offset = -1;
     Type m_type;
     bool m_is_global;
-    NodeVar* m_base = nullptr;
-    NodeVar(Token token, Type type, string name, bool is_global = false, NodeVar* base = nullptr)
+    PNodeVar m_base = nullptr;
+    NodeVar(Token token, Type type, string name, bool is_global = false, PNodeVar base = nullptr)
         : token(move(token)), name(name), m_type(move(type)), m_is_global(is_global), m_base(base){}
-    NodeVar(const Token& token, Type type, bool is_global = false, NodeVar* base = nullptr)
+    NodeVar(const Token& token, Type type, bool is_global = false, PNodeVar base = nullptr)
         : NodeVar(token, move(type), token.ident, is_global, base) {}
     optional<int> get_offset() const override { return offset; }
     optional<bool> is_global() const override { return m_is_global; }
@@ -232,7 +234,7 @@ struct NodeFuncDef: INode{
     string m_name;
     PINode m_statement;
     Type m_type;
-    vector<unique_ptr<NodeVar>> m_param;
+    vector<PNodeVar> m_param;
     int m_stack_size = 0;
     
     NodeFuncDef(const Token& token, string name, PINode statement, Type m_type, decltype(m_param) param, int stack_size)
