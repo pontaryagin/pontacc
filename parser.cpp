@@ -1,20 +1,6 @@
 #include "tokenizer.h"
 #include "parser.h"
 
-// int Context::variable_offset(const Token& token)
-// {
-//     if (m_idents_offset.contains(token.ident)){
-//         return m_idents_offset[token.ident];
-//     }
-//     if (m_parent_context && !m_var_types.contains(token.ident)){
-//         return m_parent_context->variable_offset(token);
-//     }
-//     auto type = variable_type(token.ident);
-//     auto size = visit([](auto&& t){return t->size_of(); }, type->get());
-//     *m_idents_index_max += size;
-//     return m_idents_offset[token.ident] = *m_idents_index_max;
-// }
-
 static string get_global_string_id(){
     static int num = 0;
     return ".L.."s + to_string(num++);
@@ -121,7 +107,7 @@ parse_declarator(const vector<Token>& tokens, int pos, Type type, bool is_global
     auto [suffix, pos1] = parse_type_suffix(tokens, pos, context, type);
     auto var = make_unique<NodeVar>(var_name, type, is_global);
     context.set_variable_type(var_name.ident, is_global, var.get());
-    context.locals().emplace_back(ref(*var));
+    context.add_locals(var.get());
     if (suffix){
         return make_tuple(move(var), move(*suffix), pos1);
     }
@@ -209,14 +195,14 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         auto tmp_var = context.variable_type(token.ident, is_global);
         PITyped var;
         if(tmp_var){
-            auto var_ = make_unique<NodeVar>(*tmp_var);
+            auto var_ = make_unique<NodeVar>(NodeVar(*tmp_var));
             var_->m_base = tmp_var;
-            context.locals().emplace_back(*var_);
+            context.add_locals(var_.get());
             var = move(var_); 
         }
         else {
             auto var_ = make_unique<NodeVar>(token, Type{}, is_global);
-            context.locals().emplace_back(*var_);
+            context.add_locals(var_.get());
             context.set_variable_type(var_->name, is_global, var_.get());
             var = move(var_);
         }
@@ -228,7 +214,7 @@ parse_primary(const vector<Token>& tokens, int pos, Context& context){
         context.string_literal(name, token.text);
         auto var = make_unique<NodeVar>(token, type, name, true);
         context.set_variable_type(name, true, var.get());
-        context.locals().emplace_back(*var);
+        context.add_locals(var.get());
         return {move(var), pos+1};
     }
     else if(is_kind(tokens, pos, TokenKind::Num)) {
@@ -413,16 +399,18 @@ parse_func_def(const vector<Token>& tokens, int pos, const NodeVar& node,
     auto [state, pos_state] = parse_compound_statement(tokens, pos+1, context);
     // assign stack offset
     int offset = 0;
-    for(NodeVar& local : context.locals() | views::reverse){
-        auto this_size = size_of(local.get_type());
-        if (local.offset >= 0)
-            continue;
-        offset += this_size;
-        auto local_ = &local;
-        do{
-            local_->offset = offset;
-            local_ = local_->m_base;
-        }while(local_ != nullptr);
+    for(NodeVar* local : context.locals()){
+        auto this_size = size_of(local->get_type());
+        if (local->m_base){
+            local->offset = local->m_base->offset;
+        }
+        else {
+            local->offset = offset;
+            offset += this_size;
+        }
+    }
+    for(NodeVar* local : context.locals()){
+        local->offset = offset-local->offset;
     }
     offset = round_up(offset, 16);
     return {make_unique<NodeFuncDef>(tokens.at(pos), node.name, move(state), node.get_type(), 
@@ -438,7 +426,7 @@ PosRet<PINode> parse_program(const vector<Token>& tokens, int pos){
     PINode node;
     while(pos < tokens.size()){
         Context context(&context_main);
-        context.set_locals(make_shared<std::vector<std::reference_wrapper<NodeVar>>>());
+        context.reset_locals();
         auto [type, pos1] = try_parse_declspec(tokens, pos);
         auto [node_, param, pos2] = parse_declarator(tokens, pos1, *type, true, context);
         type = node_->get_type();

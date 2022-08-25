@@ -4,8 +4,8 @@
 
 class Context {
     string m_func_name;
-    shared_ptr<vector<reference_wrapper<NodeVar>>> m_locals
-        = make_shared<vector<reference_wrapper<NodeVar>>>();
+    shared_ptr<vector<NodeVar*>> m_locals
+        = make_shared<vector<NodeVar*>>();
     map<string, NodeVar*> m_var_types;
     shared_ptr<map<string, NodeVar*>> m_var_types_global
         = make_shared<map<string, NodeVar*>>();
@@ -38,9 +38,16 @@ private:
         return nullptr;
     }
 public:
-    vector<reference_wrapper<NodeVar>>& locals() {return *m_locals;};
-    void set_locals(shared_ptr<vector<reference_wrapper<NodeVar>>> locals_in) { m_locals = move(locals_in);};
-    // int variable_offset(const Token& token);
+    const auto& locals() {return *m_locals;}
+    void add_locals(NodeVar* lvar) { 
+        for (auto l : *m_locals){
+            if (l == lvar){
+                throw;
+            }
+        }
+        m_locals->emplace_back(lvar);
+    }
+    void reset_locals() { m_locals = make_shared<vector<NodeVar*>>();}
     NodeVar* variable_type(const string& name, bool is_global) const{
         return is_global ? global(name) : local(name);
     }
